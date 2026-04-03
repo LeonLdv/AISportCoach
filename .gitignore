@@ -1,0 +1,65 @@
+﻿## Build output
+bin/
+obj/
+out/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!nuget.config
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+## Rider
+.idea/
+
+## VS Code
+.vscode/
+
+## Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+## Publish output
+publish/
+artifacts/
+
+## EF Core migrations snapshots (keep migrations, ignore designer files)
+*.designer.cs
+
+## ASP.NET Core / Aspire
+# Aspire dashboard certs (auto-generated)
+aspire/AISportCoach.AppHost/.certs/
+
+## User secrets (never commit)
+secrets.json
+appsettings.*.local.json
+
+## Claude Code personal overrides (never commit)
+CLAUDE.local.md
+
+## Docker
+docker-compose.override.yml
+
+## Logs
+*.log
+logs/
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Uploaded files (local dev storage)
+uploads/

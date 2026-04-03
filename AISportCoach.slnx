@@ -1,0 +1,15 @@
+﻿<Solution>
+  <Folder Name="/aspire/">
+    <Project Path="aspire/AISportCoach.AppHost/AISportCoach.AppHost.csproj" />
+    <Project Path="aspire/AISportCoach.ServiceDefaults/AISportCoach.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/AISportCoach.API/AISportCoach.API.csproj" />
+    <Project Path="src/AISportCoach.Application/AISportCoach.Application.csproj" />
+    <Project Path="src/AISportCoach.Domain/AISportCoach.Domain.csproj" />
+    <Project Path="src/AISportCoach.Infrastructure/AISportCoach.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AISportCoach.UnitTests/AISportCoach.UnitTests.csproj" />
+  </Folder>
+</Solution>

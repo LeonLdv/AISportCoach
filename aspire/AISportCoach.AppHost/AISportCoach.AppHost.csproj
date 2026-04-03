@@ -1,0 +1,19 @@
+﻿<Project Sdk="Aspire.AppHost.Sdk/13.1.3">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AISportCoach.API\AISportCoach.API.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.3" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>e959aae7-9fee-4236-8d8f-582e4cd7d02f</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,69 @@
+using AISportCoach.API.DTOs;
+using AISportCoach.API.Mappers;
+using AISportCoach.Application.UseCases.AnalyzeNow;
+using AISportCoach.Application.UseCases.GetVideo;
+using AISportCoach.Application.UseCases.UploadVideo;
+using Asp.Versioning;
+using AISportCoach.API.RouteNames;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+
+namespace AISportCoach.API.Controllers;
+
+[ApiController]
+[Route("api/v{version:apiVersion}/videos")]
+[ApiVersion("1.0")]
+[Produces("application/json")]
+[Tags("Videos")]
+public class VideosController(IMediator mediator) : ControllerBase
+{
+    [HttpPost]
+    [Consumes("multipart/form-data")]
+    [EndpointSummary("Upload a tennis video")]
+    [EndpointDescription("Uploads a tennis video for AI analysis. Returns the created video resource with its ID.")]
+    [ProducesResponseType(typeof(VideoResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [RequestSizeLimit(600_000_000)]
+    public async Task<ActionResult<VideoResponseDto>> Upload(
+        IFormFile file,
+        [FromForm] string playerLevel = "Intermediate",
+        CancellationToken cancellationToken = default)
+    {
+        if (file.Length == 0)
+            return ValidationProblem(new ValidationProblemDetails(
+                new Dictionary<string, string[]> { ["file"] = ["File must not be empty."] }));
+
+        var result = await mediator.Send(
+            new UploadVideoCommand(file.OpenReadStream(), file.FileName, file.Length, playerLevel),
+            cancellationToken);
+
+        var dto = new VideoResponseDto(result.Id, result.OriginalFileName, result.FileSizeBytes,
+            result.Status, result.UploadedAt);
+
+        return CreatedAtRoute(VideoRouteNames.GetById, new { id = result.Id }, dto);
+    }
+
+    [HttpGet("{id:guid}", Name = VideoRouteNames.GetById)]
+    [EndpointSummary("Get video metadata and status")]
+    [EndpointDescription("Returns metadata and current processing status for the specified video.")]
+    [ProducesResponseType(typeof(VideoResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<VideoResponseDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var video = await mediator.Send(new GetVideoQuery(id), cancellationToken);
+        return Ok(new VideoResponseDto(video.Id, video.OriginalFileName, video.FileSizeBytes,
+            video.Status.ToString(), video.UploadedAt));
+    }
+
+    [HttpPost("{videoId:guid}/analyze")]
+    [EndpointSummary("Analyze an uploaded video")]
+    [EndpointDescription("Triggers synchronous AI analysis of the uploaded video. Returns the full coaching report.")]
+    [ProducesResponseType(typeof(CoachingReportResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CoachingReportResponseDto>> Analyze(Guid videoId, CancellationToken cancellationToken)
+    {
+        var report = await mediator.Send(new AnalyzeNowCommand(videoId), cancellationToken);
+        var dto = report.ToDto();
+        return CreatedAtRoute(ReportRouteNames.GetReport, new { reportId = dto.Id }, dto);
+    }
+}
