@@ -12,7 +12,7 @@ AI-powered tennis coaching platform. Users upload videos; Gemini analyses them v
 - `src/AISportCoach.Application` — CQRS use cases, interfaces, SK plugins, orchestrator
 - `src/AISportCoach.Infrastructure` — EF Core, repositories, Gemini File API client
 - `src/AISportCoach.API` — Controllers, DTOs, mappers, middleware
-- `tests/AISportCoach.UnitTests` — Integration tests against real Gemini API
+- `tests/AISportCoach.IntegrationTests` — Integration tests against real Gemini API
 
 **Dependency flow:** `API → Application → Domain ← Infrastructure`
 
@@ -32,7 +32,7 @@ Clean Architecture with CQRS:
 # Run (Aspire spins up Postgres + API)
 dotnet run --project aspire/AISportCoach.AppHost
 
-# Test (requires Gemini:ApiKey in tests/AISportCoach.UnitTests/appsettings.test.json)
+# Test (requires Gemini:ApiKey in tests/AISportCoach.IntegrationTests/appsettings.test.json)
 dotnet test
 
 # Add EF migration (run from solution root)

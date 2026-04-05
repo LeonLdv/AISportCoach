@@ -2,9 +2,9 @@
 
 ## Framework & Project
 
-- xUnit 2.x + Moq 4.x in `tests/AISportCoach.UnitTests`
+- xUnit 2.x + Moq 4.x in `tests/AISportCoach.IntegrationTests`
 - Integration tests call the **real Gemini API** — no mocking the AI layer
-- Requires `Gemini:ApiKey` in `tests/AISportCoach.UnitTests/appsettings.test.json` or env var
+- Requires `Gemini:ApiKey` in `tests/AISportCoach.IntegrationTests/appsettings.test.json` or env var
 
 ## What to Mock vs What Not To
 
@@ -31,7 +31,7 @@ UploadAsync_FileTooLarge_ThrowsVideoTooLargeException
 
 - Cache Gemini file URIs in a temp file during test runs
 - Check cache before uploading; reuse existing URI if still ACTIVE
-- See: `tests/AISportCoach.UnitTests/Integration/TennisCoachAgentPipelineTest.cs`
+- See: `tests/AISportCoach.IntegrationTests/Integration/TennisCoachAgentPipelineTest.cs`
 
 ## Assertions
 

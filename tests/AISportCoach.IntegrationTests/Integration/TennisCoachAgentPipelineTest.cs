@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 
-namespace AISportCoach.UnitTests.Integration;
+namespace AISportCoach.IntegrationTests.Integration;
 
 /// <summary>
 /// Integration test: 2-agent Semantic Kernel pipeline that analyzes a tennis video.

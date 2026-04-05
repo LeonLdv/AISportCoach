@@ -10,6 +10,6 @@
     <Project Path="src/AISportCoach.Infrastructure/AISportCoach.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/AISportCoach.UnitTests/AISportCoach.UnitTests.csproj" />
+    <Project Path="tests/AISportCoach.IntegrationTests/AISportCoach.IntegrationTests.csproj" />
   </Folder>
 </Solution>
