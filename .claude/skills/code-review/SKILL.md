@@ -1,5 +1,5 @@
 ---
-name: review
+name: code-review
 description: Self-review recently changed or written code for correctness, quality, and adherence to project conventions. Use after writing or modifying code.
 allowed-tools: Read Grep Glob Bash
 ---
