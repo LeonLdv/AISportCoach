@@ -2,18 +2,22 @@
 using System.Text;
 using System.Text.Json;
 using AISportCoach.Application.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AISportCoach.Infrastructure.VideoProcessing;
 
 public class VideoFileService(
-    IConfiguration configuration,
+    IOptions<GeminiOptions> options,
     ILogger<VideoFileService> logger,
     HttpClient http) : IVideoFileService
 {
-    private readonly string _apiKey = configuration["Gemini:ApiKey"]
-        ?? throw new InvalidOperationException("Gemini:ApiKey is not configured");
+    private const string UploadPath = "/upload/v1beta/files";
+    private const string FilesPath = "/v1beta/";
+
+    private readonly string _apiKey = options.Value.ApiKey is { Length: > 0 } apiKey
+        ? apiKey
+        : throw new InvalidOperationException("Gemini:ApiKey is not configured");
 
     public async Task<string> UploadVideoStreamAsync(Stream stream, string fileName, CancellationToken ct = default)
     {
@@ -50,7 +54,7 @@ public class VideoFileService(
         // Step 1 — initiate resumable upload
         var initiateRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            $"https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=resumable&key={_apiKey}");
+            $"{UploadPath}?uploadType=resumable&key={_apiKey}");
 
         var metadata = JsonSerializer.Serialize(new { file = new { display_name = displayName } });
         initiateRequest.Content = new StringContent(metadata, Encoding.UTF8, "application/json");
@@ -90,7 +94,7 @@ public class VideoFileService(
         {
             var fileName = fileUri.Split('/').TakeLast(2).Aggregate((a, b) => $"{a}/{b}");
             var response = await http.GetAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/{fileName}?key={_apiKey}", ct);
+                $"{FilesPath}{fileName}?key={_apiKey}", ct);
             if (!response.IsSuccessStatusCode) return false;
 
             var body = await response.Content.ReadAsStringAsync(ct);
@@ -112,7 +116,7 @@ public class VideoFileService(
         {
             ct.ThrowIfCancellationRequested();
             var response = await http.GetStringAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/{fileName}?key={_apiKey}", ct);
+                $"{FilesPath}{fileName}?key={_apiKey}", ct);
 
             using var doc = JsonDocument.Parse(response);
             var state = doc.RootElement.GetProperty("state").GetString();
