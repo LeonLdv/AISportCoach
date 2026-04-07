@@ -45,6 +45,7 @@
 - Async methods: suffix `Async`
 - Constants: `PascalCase` (not `SCREAMING_SNAKE`)
 - Private fields: `_camelCase`
+- Never use single-letter or abbreviated variable names — use descriptive names that convey intent (e.g., `apiKey` not `k`, `response` not `r`)
 
 ## Error Handling
 
