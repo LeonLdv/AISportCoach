@@ -96,7 +96,7 @@ public class TennisCoachOrchestrator(
             {
                 observations.Add(new TechniqueObservation
                 {
-                    Id = Guid.NewGuid(),
+                    Id = Guid.CreateVersion7(),
                     Stroke = ParseEnum<TennisStroke>(obs, "stroke"),
                     Description = obs.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
                     Severity = ParseEnum<SeverityLevel>(obs, "severity"),
@@ -118,7 +118,7 @@ public class TennisCoachOrchestrator(
 
                 recommendations.Add(new ImprovementRecommendation
                 {
-                    Id = Guid.NewGuid(),
+                    Id = Guid.CreateVersion7(),
                     Title = rec.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "",
                     DetailedDescription = rec.TryGetProperty("detailedDescription", out var dd) ? dd.GetString() ?? "" : "",
                     Priority = rec.TryGetProperty("priority", out var p) ? p.GetInt32() : 1,
@@ -162,7 +162,7 @@ public class TennisCoachOrchestrator(
                 {
                     ntrpEvidenceList.Add(new NtrpEvidence
                     {
-                        Id = Guid.NewGuid(),
+                        Id = Guid.CreateVersion7(),
                         Observation = ev.TryGetProperty("observation", out var obs) ? obs.GetString() ?? "" : "",
                         NtrpIndicator = ev.TryGetProperty("ntrpIndicator", out var ind) ? ind.GetString() ?? "" : "",
                         SupportedLevel = ev.TryGetProperty("supportedLevel", out var lvl) ? lvl.GetDouble() : 0,

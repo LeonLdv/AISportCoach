@@ -40,7 +40,7 @@ public class CoachingReport
     {
         return new CoachingReport
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             VideoUploadId = videoUploadId,
             PlayerSkillLevel = playerSkillLevel,
             OverallScore = overallScore,

@@ -14,7 +14,7 @@ public class VideoUpload
     {
         return new VideoUpload
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             OriginalFileName = originalFileName,
             FileSizeBytes = fileSizeBytes,
             GeminiFileUri = geminiFileUri,
