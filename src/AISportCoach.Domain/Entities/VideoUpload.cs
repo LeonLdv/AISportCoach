@@ -2,6 +2,7 @@
 public class VideoUpload
 {
     public Guid Id { get; private set; }
+    public Guid UserId { get; private set; }
     public string OriginalFileName { get; private set; } = string.Empty;
     public long FileSizeBytes { get; private set; }
     public VideoStatus Status { get; private set; }
@@ -10,11 +11,12 @@ public class VideoUpload
 
     private VideoUpload() { }
 
-    public static VideoUpload Create(string originalFileName, long fileSizeBytes, string geminiFileUri)
+    public static VideoUpload Create(string originalFileName, long fileSizeBytes, string geminiFileUri, Guid userId)
     {
         return new VideoUpload
         {
             Id = Guid.CreateVersion7(),
+            UserId = userId,
             OriginalFileName = originalFileName,
             FileSizeBytes = fileSizeBytes,
             GeminiFileUri = geminiFileUri,
