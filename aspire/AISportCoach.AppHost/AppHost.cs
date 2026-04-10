@@ -3,6 +3,9 @@
 var pgPassword = builder.AddParameter("postgres-password", secret: true);
 
 var postgres = builder.AddPostgres("postgres", password: pgPassword)
+    .WithImageRegistry("docker.io")
+    .WithImage("pgvector/pgvector")
+    .WithImageTag("pg17")
     .WithDataVolume("tenniscoach-pgdata")
     .WithHostPort(5432)
     .WithPgAdmin()
