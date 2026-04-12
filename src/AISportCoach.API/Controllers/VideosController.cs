@@ -26,7 +26,6 @@ public class VideosController(IMediator mediator) : ControllerBase
     [RequestSizeLimit(600_000_000)]
     public async Task<ActionResult<VideoResponseDto>> Upload(
         IFormFile file,
-        [FromForm] string playerLevel = "Intermediate",
         CancellationToken cancellationToken = default)
     {
         if (file.Length == 0)
@@ -34,7 +33,7 @@ public class VideosController(IMediator mediator) : ControllerBase
                 new Dictionary<string, string[]> { ["file"] = ["File must not be empty."] }));
 
         var result = await mediator.Send(
-            new UploadVideoCommand(file.OpenReadStream(), file.FileName, file.Length, playerLevel),
+            new UploadVideoCommand(file.OpenReadStream(), file.FileName, file.Length),
             cancellationToken);
 
         var dto = new VideoResponseDto(result.Id, result.OriginalFileName, result.FileSizeBytes,
