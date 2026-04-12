@@ -1,4 +1,5 @@
 ﻿using AISportCoach.Application.Interfaces;
+using AISportCoach.Domain.Constants;
 using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Exceptions;
 using MediatR;
@@ -26,7 +27,7 @@ public class UploadVideoHandler(
             throw new UnsupportedVideoFormatException(extension);
 
         var geminiFileUri = await videoFileService.UploadVideoStreamAsync(request.FileStream, request.FileName, cancellationToken);
-        var video = VideoUpload.Create(request.FileName, request.FileSizeBytes, geminiFileUri);
+        var video = VideoUpload.Create(request.FileName, request.FileSizeBytes, geminiFileUri, MockUser.Id);
 
         await videoRepository.AddAsync(video, cancellationToken);
 

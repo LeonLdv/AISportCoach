@@ -34,7 +34,6 @@ public record NtrpEvidenceDto(
 
 public record CoachingReportResponseDto(
     Guid Id,
-    string PlayerSkillLevel,
     int OverallScore,
     string ExecutiveSummary,
     double? NtrpRating,

@@ -4,8 +4,7 @@ namespace AISportCoach.Application.UseCases.UploadVideo;
 public record UploadVideoCommand(
     Stream FileStream,
     string FileName,
-    long FileSizeBytes,
-    string PlayerLevel = "Intermediate") : IRequest<UploadVideoResult>;
+    long FileSizeBytes) : IRequest<UploadVideoResult>;
 
 public record UploadVideoResult(
     Guid Id,
