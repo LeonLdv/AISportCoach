@@ -10,9 +10,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TechniqueObservation> TechniqueObservations => Set<TechniqueObservation>();
     public DbSet<ImprovementRecommendation> ImprovementRecommendations => Set<ImprovementRecommendation>();
     public DbSet<NtrpEvidence> NtrpEvidenceItems => Set<NtrpEvidence>();
+    public DbSet<ReportEmbedding> ReportEmbeddings => Set<ReportEmbedding>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("vector");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }

@@ -20,6 +20,7 @@ namespace AISportCoach.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("AISportCoach.Domain.Entities.CoachingReport", b =>
@@ -53,10 +54,6 @@ namespace AISportCoach.Infrastructure.Migrations
 
                     b.Property<int>("OverallScore")
                         .HasColumnType("integer");
-
-                    b.Property<string>("PlayerSkillLevel")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<Guid>("VideoUploadId")
                         .HasColumnType("uuid");
@@ -139,6 +136,28 @@ namespace AISportCoach.Infrastructure.Migrations
                     b.ToTable("NtrpEvidenceItems");
                 });
 
+            modelBuilder.Entity("AISportCoach.Domain.Entities.ReportEmbedding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CoachingReportId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachingReportId");
+
+                    b.ToTable("ReportEmbeddings");
+                });
+
             modelBuilder.Entity("AISportCoach.Domain.Entities.TechniqueObservation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -202,6 +221,9 @@ namespace AISportCoach.Infrastructure.Migrations
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.ToTable("VideoUploads");
@@ -233,6 +255,17 @@ namespace AISportCoach.Infrastructure.Migrations
                 {
                     b.HasOne("AISportCoach.Domain.Entities.CoachingReport", "CoachingReport")
                         .WithMany("NtrpEvidence")
+                        .HasForeignKey("CoachingReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CoachingReport");
+                });
+
+            modelBuilder.Entity("AISportCoach.Domain.Entities.ReportEmbedding", b =>
+                {
+                    b.HasOne("AISportCoach.Domain.Entities.CoachingReport", "CoachingReport")
+                        .WithMany()
                         .HasForeignKey("CoachingReportId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

@@ -5,6 +5,7 @@ using AISportCoach.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 
 namespace AISportCoach.Application.Agents;
@@ -16,6 +17,8 @@ public class TennisCoachOrchestrator(
     NtrpRatingPlugin ntrpRatingPlugin,
     ICoachingReportRepository reportRepository,
     IVideoRepository videoRepository,
+    IReportEmbeddingRepository embeddingRepository,
+    IEmbeddingService embeddingService,
     ILogger<TennisCoachOrchestrator> logger)
 {
     public async Task<CoachingReport> ProcessAsync(Guid videoId, CancellationToken cancellationToken)
@@ -33,16 +36,23 @@ public class TennisCoachOrchestrator(
                 "[Orchestrator] Starting analysis for video: {VideoId}, fileUri: {FileUri}",
                 video.Id, fileUri);
 
-            const string playerLevel = "Intermediate";
-
             // Step 1 — video analysis
             logger.LogInformation("[Orchestrator] Step 1/3 — video analysis. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);
-            var observationsJson = await videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri, playerLevel);
+            var observationsJson = await videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri);
             logger.LogInformation("[Orchestrator] Step 1/3 complete. ObservationsJsonLength={Length}", observationsJson.Length);
 
-            // Step 2 — coaching report
+            // Retrieve history context for history-aware report generation
+            var historySw = Stopwatch.StartNew();
+            var historySummary = await FetchHistorySummaryAsync(observationsJson, video.UserId, cancellationToken);
+            historySw.Stop();
+            logger.LogInformation(
+                "[History] Retrieved similar past sessions in {ElapsedMs}ms. HasHistory={HasHistory}",
+                historySw.ElapsedMilliseconds, historySummary is not null);
+
+            // Step 2 — coaching report (with optional history context)
             logger.LogInformation("[Orchestrator] Step 2/3 — report generation. VideoId={VideoId}", videoId);
-            var reportJson = await reportGenerationPlugin.GenerateCoachingReportAsync(kernel, observationsJson, playerLevel);
+            var reportJson = await reportGenerationPlugin.GenerateCoachingReportAsync(
+                kernel, observationsJson, historySummary);
             logger.LogInformation("[Orchestrator] Step 2/3 complete. ReportJsonLength={Length}", reportJson.Length);
 
             if (string.IsNullOrWhiteSpace(reportJson))
@@ -50,15 +60,25 @@ public class TennisCoachOrchestrator(
 
             // Step 3 — NTRP rating
             logger.LogInformation("[Orchestrator] Step 3/3 — NTRP rating. VideoId={VideoId}", videoId);
-            var ntrpJson = await ntrpRatingPlugin.DetermineNtrpRatingAsync(kernel, observationsJson, playerLevel);
+            var ntrpJson = await ntrpRatingPlugin.DetermineNtrpRatingAsync(kernel, observationsJson);
             logger.LogInformation("[Orchestrator] Step 3/3 complete. NtrpJsonLength={Length}", ntrpJson.Length);
 
-            var report = ParseAndSaveReport(videoId, reportJson, ntrpJson, playerLevel);
+            var report = ParseAndSaveReport(videoId, reportJson, ntrpJson);
             logger.LogInformation(
                 "[Orchestrator] Report parsed. VideoId={VideoId}, Score={Score}, NtrpRating={NtrpRating}, Observations={ObsCount}, Recommendations={RecCount}",
                 videoId, report.OverallScore, report.NtrpRating, report.Observations.Count, report.Recommendations.Count);
 
             await reportRepository.AddAsync(report, cancellationToken);
+
+            // Generate and save embedding for future history retrieval
+            var embeddingSw = Stopwatch.StartNew();
+            var embeddingText = BuildEmbeddingText(report);
+            var vector = await embeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
+            await embeddingRepository.AddAsync(ReportEmbedding.Create(report.Id, video.UserId, vector), cancellationToken);
+            embeddingSw.Stop();
+            logger.LogInformation(
+                "[Embedding] Saved report embedding {ReportId} in {ElapsedMs}ms.",
+                report.Id, embeddingSw.ElapsedMilliseconds);
 
             sw.Stop();
             video.SetStatus(VideoStatus.Processed);
@@ -77,7 +97,58 @@ public class TennisCoachOrchestrator(
         }
     }
 
-    private CoachingReport ParseAndSaveReport(Guid videoId, string reportJson, string ntrpJson, string playerLevel)
+    private async Task<string?> FetchHistorySummaryAsync(string observationsJson, Guid userId, CancellationToken ct)
+    {
+        try
+        {
+            var queryVector = await embeddingService.GenerateEmbeddingAsync(observationsJson, ct);
+            var pastReports = await embeddingRepository.SearchSimilarAsync(queryVector, userId, topK: 5, ct);
+
+            if (pastReports.Count == 0)
+                return null;
+
+            var sb = new StringBuilder();
+            foreach (var report in pastReports.OrderBy(r => r.GeneratedAt))
+            {
+                sb.AppendLine($"Session {report.GeneratedAt:yyyy-MM-dd} | NTRP {report.NtrpRating?.ToString("0.0") ?? "N/A"} | Score {report.OverallScore}/100");
+                sb.AppendLine($"Summary: \"{report.ExecutiveSummary}\"");
+
+                var critical = report.Observations.Where(o => o.Severity == SeverityLevel.Critical).ToList();
+                var warnings = report.Observations.Where(o => o.Severity == SeverityLevel.Warning).ToList();
+
+                if (critical.Count > 0)
+                    sb.AppendLine($"Critical: {string.Join("; ", critical.Select(o => $"{o.Stroke} — \"{o.Description}\""))}");
+                if (warnings.Count > 0)
+                    sb.AppendLine($"Warning: {string.Join("; ", warnings.Select(o => $"{o.Stroke} — \"{o.Description}\""))}");
+
+                sb.AppendLine();
+            }
+            return sb.ToString().TrimEnd();
+        }
+        catch (Exception ex)
+        {
+            // History retrieval is best-effort; do not block the main pipeline
+            logger.LogWarning(ex, "[History] Failed to retrieve past sessions — continuing without history context.");
+            return null;
+        }
+    }
+
+    private static string BuildEmbeddingText(CoachingReport report)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(report.ExecutiveSummary);
+        if (report.NtrpRating.HasValue)
+            sb.AppendLine($"NTRP {report.NtrpRating:0.0} ({report.NtrpRatingMin:0.0}–{report.NtrpRatingMax:0.0}, {report.NtrpConfidence} confidence)");
+        if (report.NtrpRatingJustification is not null)
+            sb.AppendLine(report.NtrpRatingJustification);
+        foreach (var obs in report.Observations)
+            sb.AppendLine($"{obs.Stroke} {obs.Severity}: {obs.Description}");
+        foreach (var rec in report.Recommendations)
+            sb.AppendLine(rec.Title);
+        return sb.ToString();
+    }
+
+    private CoachingReport ParseAndSaveReport(Guid videoId, string reportJson, string ntrpJson)
     {
         // Strip markdown fences
         reportJson = StripToJson(reportJson, '{', '}');
@@ -176,7 +247,7 @@ public class TennisCoachOrchestrator(
             logger.LogWarning(ex, "[Orchestrator] Failed to parse NTRP JSON — report will be saved without NTRP data.");
         }
 
-        return CoachingReport.Create(videoId, playerLevel, overallScore, summary,
+        return CoachingReport.Create(videoId, overallScore, summary,
             observations, recommendations,
             ntrpRating, ntrpMin, ntrpMax, ntrpConfidence, ntrpJustification, ntrpEvidenceList);
     }
