@@ -1,12 +1,15 @@
-﻿using AISportCoach.Application.Agents;
+﻿#pragma warning disable SKEXP0001, SKEXP0070
+using AISportCoach.Application.Agents;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Infrastructure.Persistence.Repositories;
+using AISportCoach.Infrastructure.Services;
 using AISportCoach.Infrastructure.VideoProcessing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Google;
 
 namespace AISportCoach.Infrastructure;
 
@@ -18,6 +21,7 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped<IVideoRepository, VideoRepository>();
         services.AddScoped<ICoachingReportRepository, CoachingReportRepository>();
+        services.AddScoped<IReportEmbeddingRepository, ReportEmbeddingRepository>();
 
         // Gemini options
         services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
@@ -34,6 +38,9 @@ public static class DependencyInjection
             });
         services.AddTransient<IVideoFileService>(sp => sp.GetRequiredService<VideoFileService>());
 
+        // Embedding service
+        services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
+
         // Semantic Kernel
         services.AddSemanticKernel(configuration);
 
@@ -46,7 +53,14 @@ public static class DependencyInjection
         services.AddScoped<VideoAnalysisPlugin>();
         services.AddScoped<ReportGenerationPlugin>();
         services.AddScoped<NtrpRatingPlugin>();
+        services.AddScoped<CoachQAPlugin>();
         services.AddScoped<TennisCoachOrchestrator>();
+
+        services.AddGoogleAIEmbeddingGeneration(
+            modelId: "gemini-embedding-001",
+            apiKey: configuration["Gemini:ApiKey"]!,
+            apiVersion: GoogleAIVersion.V1_Beta,
+            dimensions: 768);
 
         services.AddScoped<Kernel>(sp =>
         {
@@ -66,9 +80,11 @@ public static class DependencyInjection
                 throw new InvalidOperationException("Gemini:ApiKey is not configured");
             if (string.IsNullOrEmpty(geminiOpts.ModelId))
                 throw new InvalidOperationException("Gemini:ModelId is not configured");
+
             kernelBuilder.AddGoogleAIGeminiChatCompletion(modelId: geminiOpts.ModelId, apiKey: geminiOpts.ApiKey);
 
             return kernelBuilder.Build();
         });
     }
 }
+#pragma warning restore SKEXP0001, SKEXP0070

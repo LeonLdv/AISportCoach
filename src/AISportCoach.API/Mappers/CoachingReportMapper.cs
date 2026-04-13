@@ -7,7 +7,6 @@ public static class CoachingReportMapper
 {
     public static CoachingReportResponseDto ToDto(this CoachingReport r) => new(
         r.Id,
-        r.PlayerSkillLevel,
         r.OverallScore,
         r.ExecutiveSummary,
         r.NtrpRating,
