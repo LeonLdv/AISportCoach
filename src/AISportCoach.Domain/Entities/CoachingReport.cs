@@ -4,7 +4,6 @@ public class CoachingReport
 {
     public Guid Id { get; private set; }
     public Guid VideoUploadId { get; private set; }
-    public string PlayerSkillLevel { get; private set; } = string.Empty;
     public int OverallScore { get; private set; }
     public string ExecutiveSummary { get; private set; } = string.Empty;
     public DateTime GeneratedAt { get; private set; }
@@ -26,7 +25,6 @@ public class CoachingReport
 
     public static CoachingReport Create(
         Guid videoUploadId,
-        string playerSkillLevel,
         int overallScore,
         string executiveSummary,
         List<TechniqueObservation> observations,
@@ -42,7 +40,6 @@ public class CoachingReport
         {
             Id = Guid.CreateVersion7(),
             VideoUploadId = videoUploadId,
-            PlayerSkillLevel = playerSkillLevel,
             OverallScore = overallScore,
             ExecutiveSummary = executiveSummary,
             Observations = observations,
