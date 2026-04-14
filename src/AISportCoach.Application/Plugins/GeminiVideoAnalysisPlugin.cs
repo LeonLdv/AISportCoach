@@ -13,12 +13,11 @@ public class VideoAnalysisPlugin(ILogger<VideoAnalysisPlugin> logger)
     [Description("Analyzes a tennis video via its file URI. Returns a JSON array of technique observations.")]
     public async Task<string> AnalyzeVideoAsync(
         Kernel kernel,
-        [Description("File URI returned by the video upload service")] string fileUri,
-        [Description("Player skill level: Beginner, Intermediate, or Advanced")] string playerLevel = "Intermediate")
+        [Description("File URI returned by the video upload service")] string fileUri)
     {
         logger.LogInformation(
-            "[VideoAnalysis] Starting video analysis. FileUri={FileUri}, PlayerLevel={PlayerLevel}",
-            fileUri, playerLevel);
+            "[VideoAnalysis] Starting video analysis. FileUri={FileUri}",
+            fileUri);
 
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
         var history = new ChatHistory();
@@ -30,7 +29,7 @@ public class VideoAnalysisPlugin(ILogger<VideoAnalysisPlugin> logger)
         [
             new ImageContent(new Uri(fileUri)) { MimeType = "video/mp4" },
             new TextContent($"""
-                Analyze this tennis video (player level: {playerLevel}) and return a JSON array of observations.
+                Analyze this tennis video and return a JSON array of observations.
                 Each observation must have:
                 - stroke: one of Forehand, Backhand, Serve, Volley, Overhead, Footwork, General
                 - description: specific technique issue observed
@@ -64,8 +63,8 @@ public class VideoAnalysisPlugin(ILogger<VideoAnalysisPlugin> logger)
         {
             sw.Stop();
             logger.LogError(ex,
-                "[VideoAnalysis] LLM call failed after {ElapsedMs}ms. FileUri={FileUri}, PlayerLevel={PlayerLevel}",
-                sw.ElapsedMilliseconds, fileUri, playerLevel);
+                "[VideoAnalysis] LLM call failed after {ElapsedMs}ms. FileUri={FileUri}",
+                sw.ElapsedMilliseconds, fileUri);
             throw;
         }
     }
