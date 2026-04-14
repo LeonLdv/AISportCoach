@@ -13,24 +13,37 @@ public class ReportGenerationPlugin(ILogger<ReportGenerationPlugin> logger)
     public async Task<string> GenerateCoachingReportAsync(
         Kernel kernel,
         [Description("JSON object with classified observations and score from TechniqueEvaluationPlugin")] string techniqueAnalysisJson,
-        [Description("Player skill level")] string playerLevel = "Intermediate")
+        [Description("Optional summary of the player's past sessions for trend analysis")] string? playerHistorySummary = null)
     {
         logger.LogInformation(
-            "[ReportGeneration] Generating coaching report. PlayerLevel={PlayerLevel}, InputJsonLength={InputLength}",
-            playerLevel, techniqueAnalysisJson.Length);
+            "[ReportGeneration] Generating coaching report. InputJsonLength={InputLength}, HasHistory={HasHistory}",
+            techniqueAnalysisJson.Length, playerHistorySummary is not null);
         logger.LogDebug("[ReportGeneration] Input JSON preview: {Preview}",
             techniqueAnalysisJson[..Math.Min(300, techniqueAnalysisJson.Length)]);
 
+        var historyBlock = playerHistorySummary is not null
+            ? $"""
+
+<PlayerHistory>
+Below are the player's recent sessions (oldest → newest).
+Identify confirmed improvements, recurring issues, and any regression.
+Weave trend observations into executiveSummary and recommendations.
+
+{playerHistorySummary}
+</PlayerHistory>
+
+"""
+            : string.Empty;
+
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
         var prompt = "You are a professional tennis coach. Based on this technique analysis, generate a comprehensive coaching report.\n\n" +
-                     $"Player level: {playerLevel}\n" +
-                     $"Analysis: {techniqueAnalysisJson}\n\n" +
-                     "Return a JSON object with:\n" +
+                     $"Analysis: {techniqueAnalysisJson}\n" +
+                     historyBlock +
+                     "\nReturn a JSON object with:\n" +
                      "- overallScore: 0-100\n" +
                      "- executiveSummary: 2-3 sentence summary of the player's technique\n" +
                      "- observations: array of {stroke, description, severity, frameTimestamp, bodyPart}\n" +
                      "- recommendations: array of {title, detailedDescription, priority(1=highest), targetStroke, drillSuggestions(array of strings)}\n\n" +
-                     $"Tailor language and drill complexity to the {playerLevel} skill level.\n" +
                      "Return ONLY valid JSON. No other text.";
 
         var sw = Stopwatch.StartNew();
@@ -53,8 +66,8 @@ public class ReportGenerationPlugin(ILogger<ReportGenerationPlugin> logger)
         {
             sw.Stop();
             logger.LogError(ex,
-                "[ReportGeneration] LLM call failed after {ElapsedMs}ms. PlayerLevel={PlayerLevel}",
-                sw.ElapsedMilliseconds, playerLevel);
+                "[ReportGeneration] LLM call failed after {ElapsedMs}ms.",
+                sw.ElapsedMilliseconds);
             throw;
         }
     }

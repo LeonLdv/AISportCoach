@@ -28,12 +28,11 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
     [Description("Analyzes tennis technique observations and assigns an evidence-based NTRP rating (1.5–7.0 scale)")]
     public async Task<string> DetermineNtrpRatingAsync(
         Kernel kernel,
-        [Description("JSON array of technique observations produced by VideoAnalysisPlugin.AnalyzeVideo")] string observationsJson,
-        [Description("Categorical player level hint: Beginner, Intermediate, or Advanced")] string playerLevel = "Intermediate")
+        [Description("JSON array of technique observations produced by VideoAnalysisPlugin.AnalyzeVideo")] string observationsJson)
     {
         logger.LogInformation(
-            "[NtrpRating] Starting NTRP rating determination. PlayerLevel={PlayerLevel}, InputJsonLength={InputLength}",
-            playerLevel, observationsJson.Length);
+            "[NtrpRating] Starting NTRP rating determination. InputJsonLength={InputLength}",
+            observationsJson.Length);
         logger.LogDebug("[NtrpRating] Observations JSON preview: {Preview}",
             observationsJson[..Math.Min(300, observationsJson.Length)]);
 
@@ -68,8 +67,6 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
             """;
 
         var userPrompt = $"""
-            Player level hint: {playerLevel}
-
             Technique observations (JSON array):
             {observationsJson}
 
@@ -100,8 +97,8 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
         {
             sw.Stop();
             logger.LogError(ex,
-                "[NtrpRating] LLM call failed after {ElapsedMs}ms. PlayerLevel={PlayerLevel}",
-                sw.ElapsedMilliseconds, playerLevel);
+                "[NtrpRating] LLM call failed after {ElapsedMs}ms.",
+                sw.ElapsedMilliseconds);
             throw;
         }
     }
