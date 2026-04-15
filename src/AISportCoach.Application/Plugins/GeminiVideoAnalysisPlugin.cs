@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.ComponentModel;
-using System.Diagnostics;
 
 namespace AISportCoach.Application.Plugins;
 
@@ -43,17 +42,15 @@ public class VideoAnalysisPlugin(ILogger<VideoAnalysisPlugin> logger)
 
         history.Add(userMessage);
 
-        var sw = Stopwatch.StartNew();
         try
         {
             logger.LogInformation("[VideoAnalysis] Sending video to LLM for analysis (AnalyzeVideo). FileUri={FileUri}", fileUri);
             var response = await chatService.GetChatMessageContentAsync(history, kernel: kernel);
-            sw.Stop();
 
             var content = response.Content ?? "[]";
             logger.LogInformation(
-                "[VideoAnalysis] LLM response received in {ElapsedMs}ms. ResponseLength={ResponseLength}",
-                sw.ElapsedMilliseconds, content.Length);
+                "[VideoAnalysis] LLM response received. ResponseLength={ResponseLength}",
+                content.Length);
             logger.LogDebug("[VideoAnalysis] Observations JSON preview: {Preview}",
                 content[..Math.Min(500, content.Length)]);
 
@@ -61,10 +58,7 @@ public class VideoAnalysisPlugin(ILogger<VideoAnalysisPlugin> logger)
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            logger.LogError(ex,
-                "[VideoAnalysis] LLM call failed after {ElapsedMs}ms. FileUri={FileUri}",
-                sw.ElapsedMilliseconds, fileUri);
+            logger.LogError(ex, "[VideoAnalysis] LLM call failed. FileUri={FileUri}", fileUri);
             throw;
         }
     }

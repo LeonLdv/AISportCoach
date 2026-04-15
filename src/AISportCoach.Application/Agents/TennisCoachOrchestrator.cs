@@ -4,7 +4,6 @@ using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -26,7 +25,6 @@ public class TennisCoachOrchestrator(
         var video = await videoRepository.GetByIdAsync(videoId, cancellationToken)
             ?? throw new VideoNotFoundException(videoId);
 
-        var sw = Stopwatch.StartNew();
         try
         {
             var fileUri = video.GeminiFileUri
@@ -42,12 +40,10 @@ public class TennisCoachOrchestrator(
             logger.LogInformation("[Orchestrator] Step 1/3 complete. ObservationsJsonLength={Length}", observationsJson.Length);
 
             // Retrieve history context for history-aware report generation
-            var historySw = Stopwatch.StartNew();
             var historySummary = await FetchHistorySummaryAsync(observationsJson, video.UserId, cancellationToken);
-            historySw.Stop();
             logger.LogInformation(
-                "[History] Retrieved similar past sessions in {ElapsedMs}ms. HasHistory={HasHistory}",
-                historySw.ElapsedMilliseconds, historySummary is not null);
+                "[History] Retrieved similar past sessions. HasHistory={HasHistory}",
+                historySummary is not null);
 
             // Step 2 — coaching report (with optional history context)
             logger.LogInformation("[Orchestrator] Step 2/3 — report generation. VideoId={VideoId}", videoId);
@@ -71,26 +67,20 @@ public class TennisCoachOrchestrator(
             await reportRepository.AddAsync(report, cancellationToken);
 
             // Generate and save embedding for future history retrieval
-            var embeddingSw = Stopwatch.StartNew();
             var embeddingText = BuildEmbeddingText(report);
             var vector = await embeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
             await embeddingRepository.AddAsync(ReportEmbedding.Create(report.Id, video.UserId, vector), cancellationToken);
-            embeddingSw.Stop();
-            logger.LogInformation(
-                "[Embedding] Saved report embedding {ReportId} in {ElapsedMs}ms.",
-                report.Id, embeddingSw.ElapsedMilliseconds);
+            logger.LogInformation("[Embedding] Saved report embedding {ReportId}.", report.Id);
 
-            sw.Stop();
             video.SetStatus(VideoStatus.Processed);
-            logger.LogInformation("[Orchestrator] Analysis for video {VideoId} completed successfully in {ElapsedMs}ms.", videoId, sw.ElapsedMilliseconds);
+            logger.LogInformation("[Orchestrator] Analysis for video {VideoId} completed successfully.", videoId);
 
             await videoRepository.UpdateAsync(video, cancellationToken);
             return report;
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            logger.LogError(ex, "[Orchestrator] Analysis failed for video {VideoId} after {ElapsedMs}ms.", videoId, sw.ElapsedMilliseconds);
+            logger.LogError(ex, "[Orchestrator] Analysis failed for video {VideoId}.", videoId);
             video.SetStatus(VideoStatus.Failed);
             await videoRepository.UpdateAsync(video, cancellationToken);
             throw;

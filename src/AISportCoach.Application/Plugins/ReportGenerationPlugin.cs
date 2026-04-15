@@ -2,7 +2,6 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.ComponentModel;
-using System.Diagnostics;
 
 namespace AISportCoach.Application.Plugins;
 
@@ -46,17 +45,15 @@ Weave trend observations into executiveSummary and recommendations.
                      "- recommendations: array of {title, detailedDescription, priority(1=highest), targetStroke, drillSuggestions(array of strings)}\n\n" +
                      "Return ONLY valid JSON. No other text.";
 
-        var sw = Stopwatch.StartNew();
         try
         {
             logger.LogInformation("[ReportGeneration] Sending request to LLM (GenerateCoachingReport)");
             var response = await chatService.GetChatMessageContentAsync(prompt, kernel: kernel);
-            sw.Stop();
 
             var content = response.Content ?? "{}";
             logger.LogInformation(
-                "[ReportGeneration] LLM response received in {ElapsedMs}ms. ResponseLength={ResponseLength}",
-                sw.ElapsedMilliseconds, content.Length);
+                "[ReportGeneration] LLM response received. ResponseLength={ResponseLength}",
+                content.Length);
             logger.LogDebug("[ReportGeneration] Response preview: {Preview}",
                 content[..Math.Min(500, content.Length)]);
 
@@ -64,10 +61,7 @@ Weave trend observations into executiveSummary and recommendations.
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            logger.LogError(ex,
-                "[ReportGeneration] LLM call failed after {ElapsedMs}ms.",
-                sw.ElapsedMilliseconds);
+            logger.LogError(ex, "[ReportGeneration] LLM call failed.");
             throw;
         }
     }

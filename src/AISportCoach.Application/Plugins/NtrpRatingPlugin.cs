@@ -2,7 +2,6 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.ComponentModel;
-using System.Diagnostics;
 
 namespace AISportCoach.Application.Plugins;
 
@@ -77,17 +76,15 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
         history.AddSystemMessage(systemPrompt);
         history.AddUserMessage(userPrompt);
 
-        var sw = Stopwatch.StartNew();
         try
         {
             logger.LogInformation("[NtrpRating] Sending request to LLM (DetermineNtrpRating)");
             var response = await chatService.GetChatMessageContentAsync(history, kernel: kernel);
-            sw.Stop();
 
             var content = response.Content ?? "{}";
             logger.LogInformation(
-                "[NtrpRating] LLM response received in {ElapsedMs}ms. ResponseLength={ResponseLength}",
-                sw.ElapsedMilliseconds, content.Length);
+                "[NtrpRating] LLM response received. ResponseLength={ResponseLength}",
+                content.Length);
             logger.LogDebug("[NtrpRating] Response preview: {Preview}",
                 content[..Math.Min(500, content.Length)]);
 
@@ -95,10 +92,7 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            logger.LogError(ex,
-                "[NtrpRating] LLM call failed after {ElapsedMs}ms.",
-                sw.ElapsedMilliseconds);
+            logger.LogError(ex, "[NtrpRating] LLM call failed.");
             throw;
         }
     }

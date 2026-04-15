@@ -2,7 +2,6 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.ComponentModel;
-using System.Diagnostics;
 
 namespace AISportCoach.Application.Plugins;
 
@@ -30,24 +29,21 @@ public class CoachQAPlugin(ILogger<CoachQAPlugin> logger)
                      "- drills: array of 2-4 drill suggestions as strings\n\n" +
                      "Return ONLY valid JSON. No other text.";
 
-        var sw = Stopwatch.StartNew();
         try
         {
             logger.LogInformation("[CoachQA] Sending request to LLM (AnswerQuestion)");
             var response = await chatService.GetChatMessageContentAsync(prompt, kernel: kernel);
-            sw.Stop();
 
             var content = response.Content ?? "{}";
             logger.LogInformation(
-                "[CoachQA] LLM response received in {ElapsedMs}ms. ResponseLength={ResponseLength}",
-                sw.ElapsedMilliseconds, content.Length);
+                "[CoachQA] LLM response received. ResponseLength={ResponseLength}",
+                content.Length);
 
             return content;
         }
         catch (Exception ex)
         {
-            sw.Stop();
-            logger.LogError(ex, "[CoachQA] LLM call failed after {ElapsedMs}ms.", sw.ElapsedMilliseconds);
+            logger.LogError(ex, "[CoachQA] LLM call failed.");
             throw;
         }
     }
