@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿#pragma warning disable SKEXP0070
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.ComponentModel;
@@ -24,16 +25,14 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
         """;
 
     [KernelFunction("DetermineNtrpRating")]
-    [Description("Analyzes tennis technique observations and assigns an evidence-based NTRP rating (1.5–7.0 scale)")]
+    [Description("Analyzes a tennis video directly and assigns an evidence-based NTRP rating (1.5–7.0 scale)")]
     public async Task<string> DetermineNtrpRatingAsync(
         Kernel kernel,
-        [Description("JSON array of technique observations produced by VideoAnalysisPlugin.AnalyzeVideo")] string observationsJson)
+        [Description("File URI returned by the video upload service")] string fileUri)
     {
         logger.LogInformation(
-            "[NtrpRating] Starting NTRP rating determination. InputJsonLength={InputLength}",
-            observationsJson.Length);
-        logger.LogDebug("[NtrpRating] Observations JSON preview: {Preview}",
-            observationsJson[..Math.Min(300, observationsJson.Length)]);
+            "[NtrpRating] Starting NTRP rating determination. FileUri={FileUri}",
+            fileUri);
 
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
 
@@ -43,8 +42,8 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
             {{NtrpScaleDefinitions}}
 
             Your task:
-            1. Review each observation in the provided JSON array.
-            2. Map each observation to one or more NTRP indicators.
+            1. Watch the tennis video carefully and identify specific technique indicators.
+            2. Map each observed indicator to one or more NTRP levels.
             3. Derive a consensus NTRP rating with explicit, traceable evidence.
             4. Return ONLY a valid JSON object — no markdown fences, no commentary.
 
@@ -56,7 +55,7 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
               "ratingJustification": "<2-4 sentence explanation of the consensus rating>",
               "evidence": [
                 {
-                  "observation": "<exact description from input>",
+                  "observation": "<specific technique indicator you observed>",
                   "ntrpIndicator": "<which NTRP characteristic this maps to>",
                   "supportedLevel": <numeric NTRP level this evidence points to>,
                   "weight": <"low" | "medium" | "high">
@@ -65,20 +64,19 @@ public class NtrpRatingPlugin(ILogger<NtrpRatingPlugin> logger)
             }
             """;
 
-        var userPrompt = $"""
-            Technique observations (JSON array):
-            {observationsJson}
-
-            Assign an NTRP rating with full evidence justification. Return ONLY valid JSON.
-            """;
-
         var history = new ChatHistory();
         history.AddSystemMessage(systemPrompt);
-        history.AddUserMessage(userPrompt);
+
+        var userMessage = new ChatMessageContent(AuthorRole.User, items:
+        [
+            new ImageContent(new Uri(fileUri)) { MimeType = "video/mp4" },
+            new TextContent("Watch this tennis video and assign an NTRP rating with full evidence justification. Return ONLY valid JSON.")
+        ]);
+        history.Add(userMessage);
 
         try
         {
-            logger.LogInformation("[NtrpRating] Sending request to LLM (DetermineNtrpRating)");
+            logger.LogInformation("[NtrpRating] Sending video to LLM (DetermineNtrpRating). FileUri={FileUri}", fileUri);
             var response = await chatService.GetChatMessageContentAsync(history, kernel: kernel);
 
             var content = response.Content ?? "{}";

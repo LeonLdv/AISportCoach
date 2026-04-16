@@ -18,6 +18,6 @@ public class AnalyzeNowHandler(
         video.SetStatus(VideoStatus.Processing);
         await videoRepository.UpdateAsync(video, cancellationToken);
 
-        return await orchestrator.ProcessAsync(request.VideoId, cancellationToken);
+        return await orchestrator.ProcessAsync(request.VideoId, cancellationToken, request.IncludeNtrpRating);
     }
 }

@@ -12,11 +12,12 @@ public class ReportGenerationPlugin(ILogger<ReportGenerationPlugin> logger)
     public async Task<string> GenerateCoachingReportAsync(
         Kernel kernel,
         [Description("JSON object with classified observations and score from TechniqueEvaluationPlugin")] string techniqueAnalysisJson,
-        [Description("Optional summary of the player's past sessions for trend analysis")] string? playerHistorySummary = null)
+        [Description("Optional summary of the player's past sessions for trend analysis")] string? playerHistorySummary = null,
+        [Description("Optional NTRP rating JSON produced by NtrpRatingPlugin")] string? ntrpJson = null)
     {
         logger.LogInformation(
-            "[ReportGeneration] Generating coaching report. InputJsonLength={InputLength}, HasHistory={HasHistory}",
-            techniqueAnalysisJson.Length, playerHistorySummary is not null);
+            "[ReportGeneration] Generating coaching report. InputJsonLength={InputLength}, HasHistory={HasHistory}, HasNtrp={HasNtrp}",
+            techniqueAnalysisJson.Length, playerHistorySummary is not null, ntrpJson is not null);
         logger.LogDebug("[ReportGeneration] Input JSON preview: {Preview}",
             techniqueAnalysisJson[..Math.Min(300, techniqueAnalysisJson.Length)]);
 
@@ -34,9 +35,22 @@ Weave trend observations into executiveSummary and recommendations.
 """
             : string.Empty;
 
+        var ntrpBlock = ntrpJson is not null
+            ? $"""
+
+<NtrpRating>
+The player's NTRP rating has been independently assessed. Use this to calibrate the difficulty and language of your recommendations.
+
+{ntrpJson}
+</NtrpRating>
+
+"""
+            : string.Empty;
+
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
         var prompt = "You are a professional tennis coach. Based on this technique analysis, generate a comprehensive coaching report.\n\n" +
                      $"Analysis: {techniqueAnalysisJson}\n" +
+                     ntrpBlock +
                      historyBlock +
                      "\nReturn a JSON object with:\n" +
                      "- overallScore: 0-100\n" +

@@ -59,9 +59,12 @@ public class VideosController(IMediator mediator) : ControllerBase
     [EndpointDescription("Triggers synchronous AI analysis of the uploaded video. Returns the full coaching report.")]
     [ProducesResponseType(typeof(CoachingReportResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<CoachingReportResponseDto>> Analyze(Guid videoId, CancellationToken cancellationToken)
+    public async Task<ActionResult<CoachingReportResponseDto>> Analyze(
+        Guid videoId,
+        [FromQuery] bool includeNtrpRating = true,
+        CancellationToken cancellationToken = default)
     {
-        var report = await mediator.Send(new AnalyzeNowCommand(videoId), cancellationToken);
+        var report = await mediator.Send(new AnalyzeNowCommand(videoId, includeNtrpRating), cancellationToken);
         var dto = report.ToDto();
         return CreatedAtRoute(ReportRouteNames.GetReport, new { reportId = dto.Id }, dto);
     }

@@ -20,7 +20,7 @@ public class TennisCoachOrchestrator(
     IEmbeddingService embeddingService,
     ILogger<TennisCoachOrchestrator> logger)
 {
-    public async Task<CoachingReport> ProcessAsync(Guid videoId, CancellationToken cancellationToken)
+    public async Task<CoachingReport> ProcessAsync(Guid videoId, CancellationToken cancellationToken, bool includeNtrpRating = true)
     {
         var video = await videoRepository.GetByIdAsync(videoId, cancellationToken)
             ?? throw new VideoNotFoundException(videoId);
@@ -31,35 +31,34 @@ public class TennisCoachOrchestrator(
                 ?? throw new InvalidOperationException($"Video {video.Id} has no Gemini file URI.");
 
             logger.LogInformation(
-                "[Orchestrator] Starting analysis for video: {VideoId}, fileUri: {FileUri}",
-                video.Id, fileUri);
+                "[Orchestrator] Starting analysis for video: {VideoId}, FileUri: {FileUri}, IncludeNtrpRating: {IncludeNtrpRating}",
+                video.Id, fileUri, includeNtrpRating);
 
-            // Step 1 — video analysis
-            logger.LogInformation("[Orchestrator] Step 1/3 — video analysis. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);
-            var observationsJson = await videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri);
-            logger.LogInformation("[Orchestrator] Step 1/3 complete. ObservationsJsonLength={Length}", observationsJson.Length);
+            // Step 1 — video analysis and NTRP run simultaneously via Task.WhenAll
+            logger.LogInformation("[Orchestrator] Step 1/2 — video analysis + NTRP in parallel. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);
+            var videoAnalysisTask = videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri);
+            var ntrpTask = includeNtrpRating
+                ? ntrpRatingPlugin.DetermineNtrpRatingAsync(kernel, fileUri)
+                : Task.FromResult(string.Empty);
 
-            // Retrieve history context for history-aware report generation
+            var results = await Task.WhenAll(videoAnalysisTask, ntrpTask);
+            var observationsJson = results[0];
+            var ntrpJson = string.IsNullOrEmpty(results[1]) ? null : results[1];
+            logger.LogInformation("[Orchestrator] Step 1/2 complete. ObservationsJsonLength={Length}, IncludeNtrpRating={IncludeNtrpRating}", observationsJson.Length, includeNtrpRating);
+
+            // Step 2 — sequential: history fetch, then report generation
             var historySummary = await FetchHistorySummaryAsync(observationsJson, video.UserId, cancellationToken);
-            logger.LogInformation(
-                "[History] Retrieved similar past sessions. HasHistory={HasHistory}",
-                historySummary is not null);
+            logger.LogInformation("[History] Retrieved similar past sessions. HasHistory={HasHistory}", historySummary is not null);
 
-            // Step 2 — coaching report (with optional history context)
-            logger.LogInformation("[Orchestrator] Step 2/3 — report generation. VideoId={VideoId}", videoId);
+            logger.LogInformation("[Orchestrator] Step 2/2 — report generation. VideoId={VideoId}", videoId);
             var reportJson = await reportGenerationPlugin.GenerateCoachingReportAsync(
-                kernel, observationsJson, historySummary);
-            logger.LogInformation("[Orchestrator] Step 2/3 complete. ReportJsonLength={Length}", reportJson.Length);
+                kernel, observationsJson, historySummary, ntrpJson);
+            logger.LogInformation("[Orchestrator] Step 2/2 complete. ReportJsonLength={Length}", reportJson.Length);
 
             if (string.IsNullOrWhiteSpace(reportJson))
                 throw new InvalidOperationException("ReportGenerationPlugin returned empty report");
 
-            // Step 3 — NTRP rating
-            logger.LogInformation("[Orchestrator] Step 3/3 — NTRP rating. VideoId={VideoId}", videoId);
-            var ntrpJson = await ntrpRatingPlugin.DetermineNtrpRatingAsync(kernel, observationsJson);
-            logger.LogInformation("[Orchestrator] Step 3/3 complete. NtrpJsonLength={Length}", ntrpJson.Length);
-
-            var report = ParseAndSaveReport(videoId, reportJson, ntrpJson);
+            var report = ParseAndSaveReport(videoId, reportJson, ntrpJson ?? string.Empty);
             logger.LogInformation(
                 "[Orchestrator] Report parsed. VideoId={VideoId}, Score={Score}, NtrpRating={NtrpRating}, Observations={ObsCount}, Recommendations={RecCount}",
                 videoId, report.OverallScore, report.NtrpRating, report.Observations.Count, report.Recommendations.Count);
