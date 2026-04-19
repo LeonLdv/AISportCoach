@@ -11,4 +11,4 @@ public record UploadVideoResult(
     string OriginalFileName,
     long FileSizeBytes,
     string Status,
-    DateTime UploadedAt);
+    DateTime CreatedAt);

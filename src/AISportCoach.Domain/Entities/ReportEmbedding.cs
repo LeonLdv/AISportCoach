@@ -1,12 +1,11 @@
-﻿namespace AISportCoach.Domain.Entities;
+namespace AISportCoach.Domain.Entities;
 
-public class ReportEmbedding
+public class ReportEmbedding : AuditableEntity
 {
     public Guid Id { get; private set; }
     public Guid CoachingReportId { get; private set; }
     public Guid UserId { get; private set; }
     public float[] Embedding { get; private set; } = [];
-    public DateTime CreatedAt { get; private set; }
     public CoachingReport CoachingReport { get; private set; } = null!;
 
     private ReportEmbedding() { }
@@ -17,6 +16,5 @@ public class ReportEmbedding
         CoachingReportId = reportId,
         UserId = userId,
         Embedding = embedding,
-        CreatedAt = DateTime.UtcNow
     };
 }

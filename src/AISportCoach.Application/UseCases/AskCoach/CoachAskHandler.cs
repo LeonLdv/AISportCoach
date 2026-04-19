@@ -56,9 +56,9 @@ public class CoachAskHandler(
     private static string FormatHistoryContext(IEnumerable<CoachingReport> reports)
     {
         var sb = new StringBuilder();
-        foreach (var report in reports.OrderBy(r => r.GeneratedAt))
+        foreach (var report in reports.OrderBy(r => r.CreatedAt))
         {
-            sb.AppendLine($"Session {report.GeneratedAt:yyyy-MM-dd} | NTRP {report.NtrpRating?.ToString("0.0") ?? "N/A"} | Score {report.OverallScore}/100");
+            sb.AppendLine($"Session {report.CreatedAt:yyyy-MM-dd} | NTRP {report.NtrpRating?.ToString("0.0") ?? "N/A"} | Score {report.OverallScore}/100");
             sb.AppendLine($"Summary: \"{report.ExecutiveSummary}\"");
 
             var critical = report.Observations.Where(o => o.Severity == SeverityLevel.Critical).ToList();

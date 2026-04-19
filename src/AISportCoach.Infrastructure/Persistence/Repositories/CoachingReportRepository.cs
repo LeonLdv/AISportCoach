@@ -20,7 +20,7 @@ public class CoachingReportRepository(AppDbContext db) : ICoachingReportReposito
             .Include(r => r.Observations)
             .Include(r => r.Recommendations)
             .Include(r => r.NtrpEvidence)
-            .OrderByDescending(r => r.GeneratedAt);
+            .OrderByDescending(r => r.CreatedAt);
 
         var total = await query.CountAsync(ct);
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);

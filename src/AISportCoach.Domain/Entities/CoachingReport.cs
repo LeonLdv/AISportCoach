@@ -1,12 +1,11 @@
 ﻿namespace AISportCoach.Domain.Entities;
 
-public class CoachingReport
+public class CoachingReport : AuditableEntity
 {
     public Guid Id { get; private set; }
     public Guid VideoUploadId { get; private set; }
     public int OverallScore { get; private set; }
     public string ExecutiveSummary { get; private set; } = string.Empty;
-    public DateTime GeneratedAt { get; private set; }
 
     // NTRP rating
     public double? NtrpRating { get; private set; }
@@ -50,7 +49,6 @@ public class CoachingReport
             NtrpConfidence = ntrpConfidence,
             NtrpRatingJustification = ntrpRatingJustification,
             NtrpEvidence = ntrpEvidence ?? [],
-            GeneratedAt = DateTime.UtcNow
         };
     }
 }

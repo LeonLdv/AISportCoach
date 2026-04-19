@@ -21,5 +21,5 @@ public static class CoachingReportMapper
             o.Stroke.ToString(), o.Description, o.Severity.ToString(), o.FrameTimestamp, o.BodyPart)).ToList(),
         r.Recommendations.Select(rec => new ImprovementRecommendationDto(
             rec.Title, rec.DetailedDescription, rec.Priority, rec.TargetStroke.ToString(), rec.DrillSuggestions)).ToList(),
-        r.GeneratedAt);
+        r.CreatedAt);
 }
