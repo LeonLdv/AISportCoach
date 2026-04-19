@@ -8,7 +8,7 @@ public record VideoResponseDto(
     string OriginalFileName,
     long FileSizeBytes,
     string Status,
-    DateTime UploadedAt);
+    DateTime CreatedAt);
 
 public record TechniqueObservationDto(
     string Stroke,
@@ -43,7 +43,7 @@ public record CoachingReportResponseDto(
     List<NtrpEvidenceDto> NtrpEvidence,
     List<TechniqueObservationDto> Observations,
     List<ImprovementRecommendationDto> Recommendations,
-    DateTime GeneratedAt);
+    DateTime CreatedAt);
 
 public record PagedReportsResponseDto(
     List<CoachingReportResponseDto> Items,

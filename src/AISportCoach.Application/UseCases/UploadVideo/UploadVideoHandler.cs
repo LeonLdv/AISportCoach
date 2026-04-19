@@ -32,6 +32,6 @@ public class UploadVideoHandler(
         await videoRepository.AddAsync(video, cancellationToken);
 
         return new UploadVideoResult(video.Id, video.OriginalFileName, video.FileSizeBytes,
-            video.Status.ToString(), video.UploadedAt);
+            video.Status.ToString(), video.CreatedAt);
     }
 }

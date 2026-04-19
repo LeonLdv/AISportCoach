@@ -37,7 +37,7 @@ public class VideosController(IMediator mediator) : ControllerBase
             cancellationToken);
 
         var dto = new VideoResponseDto(result.Id, result.OriginalFileName, result.FileSizeBytes,
-            result.Status, result.UploadedAt);
+            result.Status, result.CreatedAt);
 
         return CreatedAtRoute(VideoRouteNames.GetById, new { id = result.Id }, dto);
     }
@@ -51,7 +51,7 @@ public class VideosController(IMediator mediator) : ControllerBase
     {
         var video = await mediator.Send(new GetVideoQuery(id), cancellationToken);
         return Ok(new VideoResponseDto(video.Id, video.OriginalFileName, video.FileSizeBytes,
-            video.Status.ToString(), video.UploadedAt));
+            video.Status.ToString(), video.CreatedAt));
     }
 
     [HttpPost("{videoId:guid}/analyze")]
