@@ -18,6 +18,9 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
+        // Current user
+        services.AddSingleton<ICurrentUserService, CurrentUserService>();
+
         // Repositories
         services.AddScoped<IVideoRepository, VideoRepository>();
         services.AddScoped<ICoachingReportRepository, CoachingReportRepository>();
