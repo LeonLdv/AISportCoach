@@ -29,13 +29,22 @@ namespace AISportCoach.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ExecutiveSummary")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<DateTime>("GeneratedAt")
+                    b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("NtrpConfidence")
                         .HasColumnType("text");
@@ -148,6 +157,15 @@ namespace AISportCoach.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -202,12 +220,24 @@ namespace AISportCoach.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<long>("FileSizeBytes")
                         .HasColumnType("bigint");
 
                     b.Property<string>("GeminiFileUri")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
@@ -217,9 +247,6 @@ namespace AISportCoach.Infrastructure.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
