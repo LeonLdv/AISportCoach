@@ -52,7 +52,6 @@ public static class DependencyInjection
         // Plugins are called directly by the orchestrator — no agent/function-calling involved
         services.AddScoped<VideoAnalysisPlugin>();
         services.AddScoped<ReportGenerationPlugin>();
-        services.AddScoped<NtrpRatingPlugin>();
         services.AddScoped<CoachQAPlugin>();
         services.AddScoped<TennisCoachOrchestrator>();
 
@@ -65,17 +64,9 @@ public static class DependencyInjection
         services.AddScoped<Kernel>(sp =>
         {
             var kernelBuilder = Kernel.CreateBuilder();
-
-            // Retry with exponential backoff for free-tier 429 rate limits
-            // kernelBuilder.Services.ConfigureHttpClientDefaults(b => b.AddStandardResilienceHandler(o =>
-            // {
-            //     o.Retry.MaxRetryAttempts = 2;
-            //     o.Retry.Delay = TimeSpan.FromSeconds(5);
-            //     o.Retry.UseJitter = true;
-            //     o.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(2);
-            // }));
-
+            
             var geminiOpts = sp.GetRequiredService<IOptions<GeminiOptions>>().Value;
+            
             if (string.IsNullOrEmpty(geminiOpts.ApiKey))
                 throw new InvalidOperationException("Gemini:ApiKey is not configured");
             if (string.IsNullOrEmpty(geminiOpts.ModelId))

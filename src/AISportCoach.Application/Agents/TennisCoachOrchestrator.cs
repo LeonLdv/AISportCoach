@@ -1,6 +1,7 @@
-﻿using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Domain.Entities;
+using AISportCoach.Domain.Enums;
 using AISportCoach.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
@@ -13,14 +14,16 @@ public class TennisCoachOrchestrator(
     Kernel kernel,
     VideoAnalysisPlugin videoAnalysisPlugin,
     ReportGenerationPlugin reportGenerationPlugin,
-    NtrpRatingPlugin ntrpRatingPlugin,
     ICoachingReportRepository reportRepository,
     IVideoRepository videoRepository,
     IReportEmbeddingRepository embeddingRepository,
     IEmbeddingService embeddingService,
     ILogger<TennisCoachOrchestrator> logger)
 {
-    public async Task<CoachingReport> ProcessAsync(Guid videoId, CancellationToken cancellationToken, bool includeNtrpRating = true)
+    public async Task<CoachingReport> ProcessAsync(
+        Guid videoId,
+        IReadOnlySet<AnalysisScope> scopes,
+        CancellationToken cancellationToken)
     {
         var video = await videoRepository.GetByIdAsync(videoId, cancellationToken)
             ?? throw new VideoNotFoundException(videoId);
@@ -31,28 +34,19 @@ public class TennisCoachOrchestrator(
                 ?? throw new InvalidOperationException($"Video {video.Id} has no Gemini file URI.");
 
             logger.LogInformation(
-                "[Orchestrator] Starting analysis for video: {VideoId}, FileUri: {FileUri}, IncludeNtrpRating: {IncludeNtrpRating}",
-                video.Id, fileUri, includeNtrpRating);
+                "[Orchestrator] Starting analysis for video: {VideoId}, FileUri: {FileUri}, Scopes: {Scopes}",
+                video.Id, fileUri, string.Join(",", scopes));
 
-            // Step 1 — video analysis and NTRP run simultaneously via Task.WhenAll
-            logger.LogInformation("[Orchestrator] Step 1/2 — video analysis + NTRP in parallel. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);
-            var videoAnalysisTask = videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri);
-            var ntrpTask = includeNtrpRating
-                ? ntrpRatingPlugin.DetermineNtrpRatingAsync(kernel, fileUri)
-                : Task.FromResult(string.Empty);
+            // Step 1 — single merged Gemini call for observations + optional NTRP
+            logger.LogInformation("[Orchestrator] Step 1/2 — video analysis. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);
+            var mergedJson = await videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri, scopes);
+            var (observationsJson, ntrpJson) = SplitMergedAnalysisJson(mergedJson, scopes.Contains(AnalysisScope.Ntrp));
+            logger.LogInformation("[Orchestrator] Step 1/2 complete. ObservationsJsonLength={Length}", observationsJson.Length);
 
-            var results = await Task.WhenAll(videoAnalysisTask, ntrpTask);
-            var observationsJson = results[0];
-            var ntrpJson = string.IsNullOrEmpty(results[1]) ? null : results[1];
-            logger.LogInformation("[Orchestrator] Step 1/2 complete. ObservationsJsonLength={Length}, IncludeNtrpRating={IncludeNtrpRating}", observationsJson.Length, includeNtrpRating);
-
-            // Step 2 — sequential: history fetch, then report generation
-            var historySummary = await FetchHistorySummaryAsync(observationsJson, video.UserId, cancellationToken);
-            logger.LogInformation("[History] Retrieved similar past sessions. HasHistory={HasHistory}", historySummary is not null);
-
+            // Step 2 — report generation
             logger.LogInformation("[Orchestrator] Step 2/2 — report generation. VideoId={VideoId}", videoId);
             var reportJson = await reportGenerationPlugin.GenerateCoachingReportAsync(
-                kernel, observationsJson, historySummary, ntrpJson);
+                kernel, observationsJson, ntrpJson: ntrpJson);
             logger.LogInformation("[Orchestrator] Step 2/2 complete. ReportJsonLength={Length}", reportJson.Length);
 
             if (string.IsNullOrWhiteSpace(reportJson))
@@ -65,7 +59,6 @@ public class TennisCoachOrchestrator(
 
             await reportRepository.AddAsync(report, cancellationToken);
 
-            // Generate and save embedding for future history retrieval
             var embeddingText = BuildEmbeddingText(report);
             var vector = await embeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
             await embeddingRepository.AddAsync(ReportEmbedding.Create(report.Id, video.UserId, vector), cancellationToken);
@@ -86,39 +79,31 @@ public class TennisCoachOrchestrator(
         }
     }
 
-    private async Task<string?> FetchHistorySummaryAsync(string observationsJson, Guid userId, CancellationToken ct)
+    private (string observationsJson, string? ntrpJson) SplitMergedAnalysisJson(string mergedJson, bool expectNtrp)
     {
+        mergedJson = StripToJson(mergedJson, '{', '}');
         try
         {
-            var queryVector = await embeddingService.GenerateEmbeddingAsync(observationsJson, ct);
-            var pastReports = await embeddingRepository.SearchSimilarAsync(queryVector, userId, topK: 5, ct);
+            using var doc = JsonDocument.Parse(mergedJson);
+            var root = doc.RootElement;
 
-            if (pastReports.Count == 0)
-                return null;
+            var observationsJson = root.TryGetProperty("observations", out var obsEl)
+                ? obsEl.GetRawText()
+                : "[]";
 
-            var sb = new StringBuilder();
-            foreach (var report in pastReports.OrderBy(r => r.GeneratedAt))
-            {
-                sb.AppendLine($"Session {report.GeneratedAt:yyyy-MM-dd} | NTRP {report.NtrpRating?.ToString("0.0") ?? "N/A"} | Score {report.OverallScore}/100");
-                sb.AppendLine($"Summary: \"{report.ExecutiveSummary}\"");
+            string? ntrpJson = null;
+            if (expectNtrp && root.TryGetProperty("ntrp", out var ntrpEl)
+                           && ntrpEl.ValueKind == JsonValueKind.Object)
+                ntrpJson = ntrpEl.GetRawText();
+            else if (expectNtrp)
+                logger.LogWarning("[Orchestrator] NTRP requested but 'ntrp' key missing from LLM response.");
 
-                var critical = report.Observations.Where(o => o.Severity == SeverityLevel.Critical).ToList();
-                var warnings = report.Observations.Where(o => o.Severity == SeverityLevel.Warning).ToList();
-
-                if (critical.Count > 0)
-                    sb.AppendLine($"Critical: {string.Join("; ", critical.Select(o => $"{o.Stroke} — \"{o.Description}\""))}");
-                if (warnings.Count > 0)
-                    sb.AppendLine($"Warning: {string.Join("; ", warnings.Select(o => $"{o.Stroke} — \"{o.Description}\""))}");
-
-                sb.AppendLine();
-            }
-            return sb.ToString().TrimEnd();
+            return (observationsJson, ntrpJson);
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
-            // History retrieval is best-effort; do not block the main pipeline
-            logger.LogWarning(ex, "[History] Failed to retrieve past sessions — continuing without history context.");
-            return null;
+            logger.LogWarning(ex, "[Orchestrator] Failed to split merged JSON — falling back to empty observations.");
+            return ("[]", null);
         }
     }
 

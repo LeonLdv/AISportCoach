@@ -56,15 +56,20 @@ public class VideosController(IMediator mediator) : ControllerBase
 
     [HttpPost("{videoId:guid}/analyze")]
     [EndpointSummary("Analyze an uploaded video")]
-    [EndpointDescription("Triggers synchronous AI analysis of the uploaded video. Returns the full coaching report.")]
+    [EndpointDescription("Optionally pass { \"scopes\": [\"Forehand\", \"Ntrp\"] } to limit analysis. Omit or send empty body to analyze all scopes including NTRP.")]
     [ProducesResponseType(typeof(CoachingReportResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CoachingReportResponseDto>> Analyze(
         Guid videoId,
-        [FromQuery] bool includeNtrpRating = true,
+        [FromBody] AnalyzeVideoRequestDto? request,
         CancellationToken cancellationToken = default)
     {
-        var report = await mediator.Send(new AnalyzeNowCommand(videoId, includeNtrpRating), cancellationToken);
+        var scopes = request?.Scopes;
+        var command = scopes is null or { Length: 0 }
+            ? AnalyzeNowCommand.ForAllScopes(videoId)
+            : new AnalyzeNowCommand(videoId, scopes.ToHashSet());
+
+        var report = await mediator.Send(command, cancellationToken);
         var dto = report.ToDto();
         return CreatedAtRoute(ReportRouteNames.GetReport, new { reportId = dto.Id }, dto);
     }
