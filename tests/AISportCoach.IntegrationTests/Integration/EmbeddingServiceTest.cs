@@ -1,11 +1,11 @@
-﻿#pragma warning disable SKEXP0001, SKEXP0070, CS0618
+#pragma warning disable SKEXP0070
 
 using System.Text.Json;
+using AISportCoach.Application.Interfaces;
 using AISportCoach.Infrastructure.Services;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Google;
-using Microsoft.SemanticKernel.Embeddings;
 
 namespace AISportCoach.IntegrationTests.Integration;
 
@@ -45,21 +45,21 @@ public class EmbeddingServiceTest
         var apiKey = ReadApiKey();
 
         var services = new ServiceCollection();
-        services.AddGoogleAIEmbeddingGeneration(
+        services.AddGoogleAIEmbeddingGenerator(
             modelId: "gemini-embedding-001",
             apiKey: apiKey,
             apiVersion: GoogleAIVersion.V1_Beta,
             dimensions: 768);
 
         var serviceProvider = services.BuildServiceProvider();
-        var embeddingService = serviceProvider.GetRequiredService<ITextEmbeddingGenerationService>();
-        var service = new GeminiEmbeddingService(embeddingService);
+        var embeddingGenerator = serviceProvider.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+        var service = new GeminiEmbeddingService(embeddingGenerator);
 
-        var vector = await service.GenerateEmbeddingAsync(Text, CancellationToken.None);
+        var vector = await service.GenerateEmbeddingAsync(Text, EmbeddingTaskType.Document, CancellationToken.None);
 
         Assert.Equal(768, vector.Length);
         Assert.Contains(vector, v => v != 0f);
     }
 }
 
-#pragma warning restore SKEXP0001, SKEXP0070, CS0618
+#pragma warning restore SKEXP0070
