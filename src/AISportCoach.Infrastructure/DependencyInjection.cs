@@ -1,6 +1,7 @@
 ﻿#pragma warning disable SKEXP0001, SKEXP0070
 using AISportCoach.Application.Agents;
 using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Infrastructure.Persistence.Repositories;
 using AISportCoach.Infrastructure.Services;
@@ -28,6 +29,9 @@ public static class DependencyInjection
 
         // Gemini options
         services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
+
+        // RAG options
+        services.Configure<RagOptions>(configuration.GetSection("Rag"));
 
         // Video File API service (upload + active-check; DB is the URI cache)
         // AddHttpClient registers VideoFileService as transient and injects the configured HttpClient.
@@ -58,7 +62,7 @@ public static class DependencyInjection
         services.AddScoped<CoachQAPlugin>();
         services.AddScoped<TennisCoachOrchestrator>();
 
-        services.AddGoogleAIEmbeddingGeneration(
+        services.AddGoogleAIEmbeddingGenerator(
             modelId: "gemini-embedding-001",
             apiKey: configuration["Gemini:ApiKey"]!,
             apiVersion: GoogleAIVersion.V1_Beta,
