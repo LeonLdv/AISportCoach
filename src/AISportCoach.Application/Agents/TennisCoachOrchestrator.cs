@@ -46,7 +46,7 @@ public class TennisCoachOrchestrator(
             // Step 2 — report generation
             logger.LogInformation("[Orchestrator] Step 2/2 — report generation. VideoId={VideoId}", videoId);
             var reportJson = await reportGenerationPlugin.GenerateCoachingReportAsync(
-                kernel, observationsJson, ntrpJson: ntrpJson);
+                kernel, observationsJson, null, ntrpJson);
             logger.LogInformation("[Orchestrator] Step 2/2 complete. ReportJsonLength={Length}", reportJson.Length);
 
             if (string.IsNullOrWhiteSpace(reportJson))
@@ -60,7 +60,7 @@ public class TennisCoachOrchestrator(
             await reportRepository.AddAsync(report, cancellationToken);
 
             var embeddingText = BuildEmbeddingText(report);
-            var vector = await embeddingService.GenerateEmbeddingAsync(embeddingText, cancellationToken);
+            var vector = await embeddingService.GenerateEmbeddingAsync(embeddingText, EmbeddingTaskType.Document, cancellationToken);
             await embeddingRepository.AddAsync(ReportEmbedding.Create(report.Id, video.UserId, vector), cancellationToken);
             logger.LogInformation("[Embedding] Saved report embedding {ReportId}.", report.Id);
 
@@ -110,15 +110,31 @@ public class TennisCoachOrchestrator(
     private static string BuildEmbeddingText(CoachingReport report)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(report.ExecutiveSummary);
+        sb.AppendLine($"SUMMARY: {report.ExecutiveSummary}");
         if (report.NtrpRating.HasValue)
-            sb.AppendLine($"NTRP {report.NtrpRating:0.0} ({report.NtrpRatingMin:0.0}–{report.NtrpRatingMax:0.0}, {report.NtrpConfidence} confidence)");
-        if (report.NtrpRatingJustification is not null)
-            sb.AppendLine(report.NtrpRatingJustification);
-        foreach (var obs in report.Observations)
-            sb.AppendLine($"{obs.Stroke} {obs.Severity}: {obs.Description}");
-        foreach (var rec in report.Recommendations)
-            sb.AppendLine(rec.Title);
+            sb.AppendLine($"NTRP: {report.NtrpRating:0.0} ({report.NtrpRatingMin:0.0}–{report.NtrpRatingMax:0.0}, {report.NtrpConfidence}) — {report.NtrpRatingJustification}");
+        if (report.NtrpEvidence?.Count > 0)
+        {
+            sb.AppendLine("NTRP EVIDENCE:");
+            foreach (var ev in report.NtrpEvidence)
+                sb.AppendLine($"  {ev.NtrpIndicator} level {ev.SupportedLevel:0.0} ({ev.Weight}): {ev.Observation}");
+        }
+        if (report.Observations.Count > 0)
+        {
+            sb.AppendLine("OBSERVATIONS:");
+            foreach (var obs in report.Observations)
+                sb.AppendLine($"  {obs.Stroke} [{obs.Severity}] {obs.BodyPart}: {obs.Description}");
+        }
+        if (report.Recommendations.Count > 0)
+        {
+            sb.AppendLine("RECOMMENDATIONS:");
+            foreach (var rec in report.Recommendations)
+            {
+                sb.AppendLine($"  [{rec.Priority}] {rec.TargetStroke} — {rec.Title}: {rec.DetailedDescription}");
+                if (rec.DrillSuggestions.Count > 0)
+                    sb.AppendLine($"  DRILLS: {string.Join("; ", rec.DrillSuggestions)}");
+            }
+        }
         return sb.ToString();
     }
 
