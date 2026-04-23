@@ -28,7 +28,7 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
     }
 
     public async Task<List<CoachingReport>> SearchSimilarAsync(
-        float[] queryEmbedding, Guid userId, int topK, CancellationToken ct)
+        float[] queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct)
     {
         var vectorLiteral = $"[{string.Join(",", queryEmbedding)}]";
 
@@ -36,6 +36,7 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
             SELECT cr.* FROM "CoachingReports" cr
             JOIN "ReportEmbeddings" re ON re."CoachingReportId" = cr."Id"
             WHERE re."UserId" = @userId
+              AND re."Embedding" <=> '{vectorLiteral}'::vector < @maxDistance
             ORDER BY re."Embedding" <=> '{vectorLiteral}'::vector
             LIMIT @topK
             """;
@@ -43,6 +44,7 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
         return await context.CoachingReports
             .FromSqlRaw(sql,
                 new NpgsqlParameter("userId", userId),
+                new NpgsqlParameter<double>("maxDistance", maxDistance),
                 new NpgsqlParameter("topK", topK))
             .Include(r => r.Observations)
             .Include(r => r.Recommendations)

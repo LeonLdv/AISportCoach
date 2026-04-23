@@ -6,5 +6,5 @@ public interface IReportEmbeddingRepository
 {
     Task AddAsync(ReportEmbedding embedding, CancellationToken ct);
     Task<List<CoachingReport>> SearchSimilarAsync(
-        float[] queryEmbedding, Guid userId, int topK, CancellationToken ct);
+        float[] queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct);
 }
