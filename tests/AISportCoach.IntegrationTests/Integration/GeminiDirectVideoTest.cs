@@ -8,28 +8,29 @@ namespace AISportCoach.IntegrationTests.Integration;
 /// </summary>
 public class GeminiDirectVideoTest
 {
-    private const string Model = "gemini-2.5-flash";
-    private const string FileUri = "https://generativelanguage.googleapis.com/v1beta/files/s70s6scz1uim";
+    private const string FileUri = "https://generativelanguage.googleapis.com/v1beta/files/7mohrco97sm5";
 
-    private static string ReadApiKey()
+    private static (string apiKey, string modelId) ReadConfig()
     {
-        var fromEnv = Environment.GetEnvironmentVariable("Gemini__ApiKey");
-        if (!string.IsNullOrWhiteSpace(fromEnv)) return fromEnv;
+        string? apiKey = Environment.GetEnvironmentVariable("Gemini__ApiKey");
+        string? modelId = Environment.GetEnvironmentVariable("Gemini__ModelId");
 
         foreach (var fileName in new[] { "secrets.json", "appsettings.test.json" })
         {
             var path = Path.Combine(AppContext.BaseDirectory, fileName);
             if (!File.Exists(path)) continue;
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            if (doc.RootElement.TryGetProperty("Gemini", out var gemini) &&
-                gemini.TryGetProperty("ApiKey", out var key))
-            {
-                var value = key.GetString();
-                if (!string.IsNullOrWhiteSpace(value)) return value;
-            }
+            if (!doc.RootElement.TryGetProperty("Gemini", out var gemini)) continue;
+            if (string.IsNullOrWhiteSpace(apiKey) && gemini.TryGetProperty("ApiKey", out var key))
+                apiKey = key.GetString();
+            if (string.IsNullOrWhiteSpace(modelId) && gemini.TryGetProperty("ModelId", out var model))
+                modelId = model.GetString();
         }
 
-        throw new InvalidOperationException("Gemini:ApiKey not set.");
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new InvalidOperationException("Gemini:ApiKey not set.");
+
+        return (apiKey, modelId ?? "gemini-3-flash-preview");
     }
 
     private static async Task<bool> IsFileActiveAsync(HttpClient http, string apiKey)
@@ -47,7 +48,7 @@ public class GeminiDirectVideoTest
     [Fact]
     public async Task AnalyzeVideo_DirectRestCall_ReturnsObservations()
     {
-        var apiKey = ReadApiKey();
+        var (apiKey, modelId) = ReadConfig();
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 
         var isActive = await IsFileActiveAsync(http, apiKey);
@@ -87,7 +88,7 @@ public class GeminiDirectVideoTest
         };
 
         var json = JsonSerializer.Serialize(requestBody);
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={apiKey}";
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelId}:generateContent?key={apiKey}";
 
         HttpResponseMessage response;
         string body;
