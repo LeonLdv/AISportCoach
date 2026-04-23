@@ -1,9 +1,11 @@
 ﻿using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Domain.Constants;
 using AISportCoach.Domain.Entities;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using System.Text;
 using System.Text.Json;
@@ -13,6 +15,7 @@ namespace AISportCoach.Application.UseCases.AskCoach;
 public class CoachAskHandler(
     IEmbeddingService embeddingService,
     IReportEmbeddingRepository embeddingRepository,
+    IOptions<RagOptions> ragOptions,
     CoachQAPlugin coachQAPlugin,
     Kernel kernel,
     ILogger<CoachAskHandler> logger) : IRequestHandler<CoachAskQuery, CoachAnswerResult>
@@ -21,10 +24,10 @@ public class CoachAskHandler(
     {
         logger.LogInformation("[CoachAsk] Received question. QuestionLength={Length}", request.Question.Length);
 
-        var questionVector = await embeddingService.GenerateEmbeddingAsync(request.Question, cancellationToken);
+        var questionVector = await embeddingService.GenerateEmbeddingAsync(request.Question, EmbeddingTaskType.Query, cancellationToken);
 
         var similarReports = await embeddingRepository.SearchSimilarAsync(
-            questionVector, MockUser.Id, topK: 5, cancellationToken);
+            questionVector, MockUser.Id, ragOptions.Value.TopK, ragOptions.Value.SimilarityThreshold, cancellationToken);
 
         var historyContext = similarReports.Count == 0
             ? "No previous sessions found."

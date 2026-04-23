@@ -1,15 +1,18 @@
 ﻿using AISportCoach.Application.Interfaces;
-using Microsoft.SemanticKernel.Embeddings;
+using Microsoft.Extensions.AI;
 
 namespace AISportCoach.Infrastructure.Services;
 
-#pragma warning disable SKEXP0001
-public class GeminiEmbeddingService(ITextEmbeddingGenerationService embeddingService) : IEmbeddingService
+public class GeminiEmbeddingService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator) : IEmbeddingService
 {
-    public async Task<float[]> GenerateEmbeddingAsync(string text, CancellationToken ct)
+    public async Task<float[]> GenerateEmbeddingAsync(string text, EmbeddingTaskType taskType, CancellationToken ct)
     {
-        var embedding = await embeddingService.GenerateEmbeddingAsync(text, cancellationToken: ct);
-        return embedding.ToArray();
+        var options = new EmbeddingGenerationOptions
+        {
+            AdditionalProperties = new() { ["taskType"] = taskType == EmbeddingTaskType.Document
+                ? "RETRIEVAL_DOCUMENT" : "RETRIEVAL_QUERY" }
+        };
+        var embeddings = await embeddingGenerator.GenerateAsync([text], options, ct);
+        return embeddings[0].Vector.ToArray();
     }
 }
-#pragma warning restore SKEXP0001
