@@ -11,5 +11,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AISportCoach.IntegrationTests/AISportCoach.IntegrationTests.csproj" />
+    <Project Path="tests/AISportCoach.FunctionalTests/AISportCoach.FunctionalTests.csproj" />
   </Folder>
 </Solution>
