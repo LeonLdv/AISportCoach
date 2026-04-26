@@ -8,6 +8,7 @@ public class CoachingReportRepository(AppDbContext db) : ICoachingReportReposito
 {
     public Task<CoachingReport?> GetByIdAsync(Guid reportId, CancellationToken ct = default)
         => db.CoachingReports
+             .AsNoTracking()
              .Include(r => r.Observations)
              .Include(r => r.Recommendations)
              .Include(r => r.NtrpEvidence)
@@ -16,14 +17,18 @@ public class CoachingReportRepository(AppDbContext db) : ICoachingReportReposito
     public async Task<(List<CoachingReport> Items, int TotalCount)> GetPagedAsync(
         int page, int pageSize, CancellationToken ct = default)
     {
-        var query = db.CoachingReports
+        var total = await db.CoachingReports.CountAsync(ct);
+
+        var items = await db.CoachingReports
+            .AsNoTracking()
             .Include(r => r.Observations)
             .Include(r => r.Recommendations)
             .Include(r => r.NtrpEvidence)
-            .OrderByDescending(r => r.CreatedAt);
+            .OrderByDescending(r => r.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
 
-        var total = await query.CountAsync(ct);
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         return (items, total);
     }
 

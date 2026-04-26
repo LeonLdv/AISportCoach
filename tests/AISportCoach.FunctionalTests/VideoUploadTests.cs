@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text.Json;
 using AISportCoach.FunctionalTests.Fixtures;
 
@@ -10,7 +11,17 @@ public class VideoUploadTests(AspireFixture fixture)
 {
     private readonly HttpClient _client = fixture.ApiClient;
     private const string UploadUrl = "/api/v1/videos";
-    private const string TestVideoPath = "C:/projects/AISportCoach/uploads/2a6e7893-fd22-4d96-ac72-782ff45b0a3f__720P.mp4";
+    private static readonly string TestVideoPath = Path.Combine(
+        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
+        "TestData",
+        "sample.mp4"
+    );
+
+    static VideoUploadTests()
+    {
+        if (!File.Exists(TestVideoPath))
+            throw new FileNotFoundException($"Test video not found at {TestVideoPath}. Ensure TestData/sample.mp4 is included in the project.");
+    }
 
     [Fact]
     public async Task Upload_EmptyFile_Returns400()
@@ -61,9 +72,6 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task Upload_ValidMp4_Returns201()
     {
-        if (!File.Exists(TestVideoPath))
-            return;
-
         using var content = new MultipartFormDataContent();
         await using var stream = File.OpenRead(TestVideoPath);
         var streamContent = new StreamContent(stream);
@@ -86,9 +94,6 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task GetById_AfterUpload_Returns200()
     {
-        if (!File.Exists(TestVideoPath))
-            return;
-
         using var uploadContent = new MultipartFormDataContent();
         await using var stream = File.OpenRead(TestVideoPath);
         var streamContent = new StreamContent(stream);
