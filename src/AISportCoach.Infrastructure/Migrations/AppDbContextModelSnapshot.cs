@@ -69,6 +69,10 @@ namespace AISportCoach.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt")
+                        .IsDescending()
+                        .HasDatabaseName("idx_coaching_reports_created_at");
+
                     b.HasIndex("VideoUploadId");
 
                     b.ToTable("CoachingReports");

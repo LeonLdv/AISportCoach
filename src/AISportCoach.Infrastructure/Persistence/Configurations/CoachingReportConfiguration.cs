@@ -10,6 +10,10 @@ public class CoachingReportConfiguration : IEntityTypeConfiguration<CoachingRepo
     {
         builder.HasKey(r => r.Id);
         builder.Property(r => r.ExecutiveSummary).HasMaxLength(2000);
+
+        builder.HasIndex(r => r.CreatedAt)
+               .HasDatabaseName("idx_coaching_reports_created_at")
+               .IsDescending();
         builder.HasOne(r => r.VideoUpload)
                .WithMany()
                .HasForeignKey(r => r.VideoUploadId);
