@@ -1,3 +1,4 @@
+using AISportCoach.ServiceDefaults;
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 
@@ -21,10 +22,10 @@ public class AspireFixture : IAsyncLifetime
         await _app.StartAsync();
 
         await _app.ResourceNotifications
-            .WaitForResourceHealthyAsync("api")
+            .WaitForResourceHealthyAsync(ResourceNames.ApiService)
             .WaitAsync(TimeSpan.FromSeconds(120));
 
-        ApiClient = _app.CreateHttpClient("api");
+        ApiClient = _app.CreateHttpClient(ResourceNames.ApiService);
     }
 
     public async Task DisposeAsync()

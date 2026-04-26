@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AISportCoach.API\AISportCoach.API.csproj" />
+    <ProjectReference Include="..\AISportCoach.ServiceDefaults\AISportCoach.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
   <ItemGroup>

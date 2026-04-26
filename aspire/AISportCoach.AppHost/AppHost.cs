@@ -1,4 +1,6 @@
-﻿var builder = DistributedApplication.CreateBuilder(args);
+﻿using AISportCoach.ServiceDefaults;
+
+var builder = DistributedApplication.CreateBuilder(args);
 
 var pgPassword = builder.AddParameter("postgres-password", secret: true);
 
@@ -11,7 +13,7 @@ var postgres = builder.AddPostgres("postgres", password: pgPassword)
     .WithPgAdmin()
     .AddDatabase("tenniscoach");
 
-builder.AddProject<Projects.AISportCoach_API>("api")
+builder.AddProject<Projects.AISportCoach_API>(ResourceNames.ApiService)
     .WithReference(postgres)
     .WaitFor(postgres);
 
