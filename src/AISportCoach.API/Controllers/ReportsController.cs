@@ -1,7 +1,10 @@
 using AISportCoach.API.DTOs;
 using AISportCoach.API.Mappers;
+using AISportCoach.Application.DTOs;
+using AISportCoach.Application.Models;
 using AISportCoach.Application.UseCases.GetReport;
 using AISportCoach.Application.UseCases.GetReports;
+using AISportCoach.Application.UseCases.GetReportsSummary;
 using Asp.Versioning;
 using AISportCoach.API.RouteNames;
 using MediatR;
@@ -28,17 +31,28 @@ public class ReportsController(IMediator mediator) : ControllerBase
         return Ok(report.ToDto());
     }
 
+    [HttpGet("summary")]
+    [EndpointSummary("List coaching report summaries")]
+    [EndpointDescription("Returns a paginated list coaching report summaries.")]
+    [ProducesResponseType(typeof(PagedResult<CoachingReportSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<PagedResult<CoachingReportSummary>>> GetReportsSummary(
+        [FromQuery] PaginationQuery pagination, CancellationToken cancellationToken = default)
+    {
+        var result = await mediator.Send(new GetReportsSummaryQuery(pagination.Page, pagination.PageSize), cancellationToken);
+        return Ok(result);
+    }
+
     [HttpGet]
     [EndpointSummary("List all coaching reports")]
     [EndpointDescription("Returns a paginated list of coaching reports.")]
-    [ProducesResponseType(typeof(PagedReportsResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<CoachingReportResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<PagedReportsResponseDto>> GetReports(
+    public async Task<ActionResult<PagedResult<CoachingReportResponseDto>>> GetReports(
         [FromQuery] PaginationQuery pagination, CancellationToken cancellationToken = default)
     {
         var result = await mediator.Send(new GetReportsQuery(pagination.Page, pagination.PageSize), cancellationToken);
-        return Ok(new PagedReportsResponseDto(
-            result.Items.Select(r => r.ToDto()).ToList(),
-            result.TotalCount, result.Page, result.PageSize));
+        var dtoItems = result.Items.Select(r => r.ToDto()).ToList();
+        return Ok(new PagedResult<CoachingReportResponseDto>(dtoItems, result.TotalCount, result.Page, result.PageSize));
     }
 }

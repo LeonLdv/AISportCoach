@@ -46,8 +46,8 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
                 new NpgsqlParameter("userId", userId),
                 new NpgsqlParameter<double>("maxDistance", maxDistance),
                 new NpgsqlParameter("topK", topK))
+            .AsNoTracking()
             .Include(r => r.Observations)
-            .Include(r => r.Recommendations)
             .ToListAsync(ct);
     }
 }

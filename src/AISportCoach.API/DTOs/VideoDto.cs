@@ -45,17 +45,11 @@ public record CoachingReportResponseDto(
     List<ImprovementRecommendationDto> Recommendations,
     DateTime CreatedAt);
 
-public record PagedReportsResponseDto(
-    List<CoachingReportResponseDto> Items,
-    int TotalCount,
-    int Page,
-    int PageSize);
-
 public record PaginationQuery(
-    [property: FromQuery(Name = "page")]
-    [property: Range(1, int.MaxValue, ErrorMessage = "Page must be at least 1.")]
+    [FromQuery(Name = "page")]
+    [Range(1, int.MaxValue, ErrorMessage = "Page must be at least 1.")]
     int Page = 1,
 
-    [property: FromQuery(Name = "pageSize")]
-    [property: Range(1, 100, ErrorMessage = "Page size must be between 1 and 100.")]
+    [FromQuery(Name = "pageSize")]
+    [Range(1, 100, ErrorMessage = "Page size must be between 1 and 100.")]
     int PageSize = 10);
