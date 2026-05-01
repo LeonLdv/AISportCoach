@@ -13,6 +13,48 @@
 - JSONB columns (e.g. `DrillSuggestions`): `HasColumnType("jsonb")`
 - Optional navigations: map as nullable (`string?`, `Guid?`)
 
+## Primary Keys & GUIDs
+
+**Always use UUIDv7 (time-ordered) for database primary keys:**
+
+```csharp
+// ✅ Correct - use UUIDv7 for entity IDs
+public static VideoUpload Create(...)
+{
+    return new VideoUpload
+    {
+        Id = Guid.CreateVersion7(), // Time-ordered, index-friendly
+        ...
+    }
+}
+
+// ✅ Correct - Identity users must also use UUIDv7
+var user = new ApplicationUser
+{
+    Id = Guid.CreateVersion7(), // Explicitly set before CreateAsync
+    UserName = email,
+    Email = email
+};
+await userManager.CreateAsync(user, password);
+
+// ❌ Wrong - never use random GUIDs for database IDs
+Id = Guid.NewGuid() // Random v4 - causes index fragmentation
+
+// ✅ Exception - fixed GUIDs OK for seed data only
+var systemUserId = new Guid("00000000-0000-0000-0000-000000000001");
+```
+
+**Why UUIDv7:**
+- Time-ordered (timestamp in first 48 bits) → sequential inserts
+- Minimal B-tree index fragmentation (~5-10% vs 100% with v4)
+- Better cache locality and query performance
+- Safe for distributed systems (unlike auto-increment integers)
+- PostgreSQL indexes perform well with sequential UUIDs
+
+**Never:**
+- Use `Guid.NewGuid()` (UUIDv4) for entity IDs — causes severe index fragmentation
+- Use auto-increment integers for primary keys in this codebase — breaks the established pattern
+
 ## Migrations
 
 Run from solution root:

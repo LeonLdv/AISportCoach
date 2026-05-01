@@ -47,6 +47,12 @@
 - Private fields: `_camelCase`
 - Never use single-letter or abbreviated variable names — use descriptive names that convey intent (e.g., `apiKey` not `k`, `response` not `r`)
 
+**Enums:**
+- Always start numbering from `1`, not `0` (e.g., `Free = 1, Premium = 2`)
+- Use explicit values for all enum members
+- Store as strings in database via `.HasConversion<string>()` (see Database Conventions)
+- Reserve high values (e.g., `99`) for special/system-level entries
+
 ## Error Handling
 
 - Throw domain exceptions (`DomainException` subclasses) from Application/Domain layers
