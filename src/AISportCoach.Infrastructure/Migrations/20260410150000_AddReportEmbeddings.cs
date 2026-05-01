@@ -14,7 +14,7 @@ namespace AISportCoach.Infrastructure.Migrations
             // Enable pgvector extension
             migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS vector");
 
-            // Add UserId to VideoUploads — defaults to MockUser.Id for existing rows
+            // Add UserId to VideoUploads — defaults to SystemUser.Id for existing rows
             migrationBuilder.AddColumn<Guid>(
                 name: "UserId",
                 table: "VideoUploads",
