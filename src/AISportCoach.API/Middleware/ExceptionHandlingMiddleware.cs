@@ -22,6 +22,19 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     {
         var (statusCode, title) = exception switch
         {
+            // Auth exceptions
+            InvalidCredentialsException or EmailNotConfirmedException or WebAuthnVerificationException
+                => (HttpStatusCode.Unauthorized, "Authentication Failed"),
+            UserNotFoundException
+                => (HttpStatusCode.NotFound, "User Not Found"),
+            UserAlreadyExistsException
+                => (HttpStatusCode.Conflict, "User Already Exists"),
+            InvalidTokenException
+                => (HttpStatusCode.BadRequest, "Invalid Token"),
+            SubscriptionRequiredException
+                => (HttpStatusCode.Forbidden, "Premium Subscription Required"),
+
+            // Existing exceptions
             VideoNotFoundException or ReportNotFoundException
                 => (HttpStatusCode.NotFound, "Resource Not Found"),
             VideoTooLargeException or UnsupportedVideoFormatException
