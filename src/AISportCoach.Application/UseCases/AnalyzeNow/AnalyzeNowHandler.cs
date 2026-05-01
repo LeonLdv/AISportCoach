@@ -1,6 +1,7 @@
 ﻿using AISportCoach.Application.Agents;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Domain.Entities;
+using AISportCoach.Domain.Enums;
 using AISportCoach.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
