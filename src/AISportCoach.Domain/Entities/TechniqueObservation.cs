@@ -1,4 +1,7 @@
-﻿namespace AISportCoach.Domain.Entities;
+﻿using AISportCoach.Domain.Enums;
+
+namespace AISportCoach.Domain.Entities;
+
 public class TechniqueObservation
 {
     public Guid Id { get; set; }

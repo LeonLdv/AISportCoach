@@ -1,5 +1,4 @@
 ﻿using AISportCoach.Application.Interfaces;
-using AISportCoach.Domain.Constants;
 using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Exceptions;
 using MediatR;
@@ -11,6 +10,7 @@ namespace AISportCoach.Application.UseCases.UploadVideo;
 public class UploadVideoHandler(
     IVideoFileService videoFileService,
     IVideoRepository videoRepository,
+    ICurrentUserService currentUserService,
     IConfiguration configuration,
     ILogger<UploadVideoHandler> logger) : IRequestHandler<UploadVideoCommand, UploadVideoResult>
 {
@@ -45,7 +45,7 @@ public class UploadVideoHandler(
         var geminiFileUri = await videoFileService.UploadVideoStreamAsync(request.FileStream, request.FileName, cancellationToken);
         logger.LogInformation("Video uploaded to Gemini successfully: Uri={GeminiFileUri}", geminiFileUri);
 
-        var video = VideoUpload.Create(request.FileName, request.FileSizeBytes, geminiFileUri, MockUser.Id);
+        var video = VideoUpload.Create(request.FileName, request.FileSizeBytes, geminiFileUri, currentUserService.UserId);
 
         await videoRepository.AddAsync(video, cancellationToken);
         logger.LogInformation("Video upload completed successfully: VideoId={VideoId}, Status={Status}",

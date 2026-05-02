@@ -17,6 +17,15 @@ public class CoachingReportRepository(AppDbContext db) : ICoachingReportReposito
              .Include(r => r.NtrpEvidence)
              .FirstOrDefaultAsync(r => r.Id == reportId, ct);
 
+    public Task<CoachingReport?> GetByIdAndUserAsync(Guid reportId, Guid userId, CancellationToken ct = default)
+        => db.CoachingReports
+             .AsNoTracking()
+             .Include(r => r.VideoUpload)
+             .Include(r => r.Observations)
+             .Include(r => r.Recommendations)
+             .Include(r => r.NtrpEvidence)
+             .FirstOrDefaultAsync(r => r.Id == reportId && r.VideoUpload.UserId == userId, ct);
+
     public async Task<PagedResult<CoachingReport>> GetPagedAsync(
         int page, int pageSize, CancellationToken ct = default)
     {
@@ -29,10 +38,42 @@ public class CoachingReportRepository(AppDbContext db) : ICoachingReportReposito
             .ToPagedResultAsync(page, pageSize, ct);
     }
 
+    public async Task<PagedResult<CoachingReport>> GetPagedByUserAsync(
+        Guid userId, int page, int pageSize, CancellationToken ct = default)
+    {
+        return await db.CoachingReports
+            .AsNoTracking()
+            .Include(r => r.VideoUpload)
+            .Include(r => r.Observations)
+            .Include(r => r.Recommendations)
+            .Include(r => r.NtrpEvidence)
+            .Where(r => r.VideoUpload.UserId == userId)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToPagedResultAsync(page, pageSize, ct);
+    }
+
     public async Task<PagedResult<CoachingReportSummary>> GetPagedSummariesAsync(int page, int pageSize, CancellationToken ct = default)
     {
         return await db.CoachingReports
             .AsNoTracking()
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new CoachingReportSummary(
+                r.Id,
+                r.OverallScore,
+                r.ExecutiveSummary,
+                r.NtrpRating,
+                r.CreatedAt
+            ))
+            .ToPagedResultAsync(page, pageSize, ct);
+    }
+
+    public async Task<PagedResult<CoachingReportSummary>> GetPagedSummariesByUserAsync(
+        Guid userId, int page, int pageSize, CancellationToken ct = default)
+    {
+        return await db.CoachingReports
+            .AsNoTracking()
+            .Include(r => r.VideoUpload)
+            .Where(r => r.VideoUpload.UserId == userId)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => new CoachingReportSummary(
                 r.Id,

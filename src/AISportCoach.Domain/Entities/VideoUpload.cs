@@ -1,4 +1,6 @@
-﻿namespace AISportCoach.Domain.Entities;
+﻿using AISportCoach.Domain.Enums;
+
+namespace AISportCoach.Domain.Entities;
 
 public class VideoUpload : AuditableEntity
 {
@@ -8,6 +10,9 @@ public class VideoUpload : AuditableEntity
     public long FileSizeBytes { get; private set; }
     public VideoStatus Status { get; private set; }
     public string? GeminiFileUri { get; private set; }
+
+    // Navigation property
+    public UserProfile User { get; private set; } = null!;
 
     private VideoUpload() { }
 
