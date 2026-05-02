@@ -3,6 +3,7 @@ using AISportCoach.API.RouteNames;
 using AISportCoach.Application.UseCases.AskCoach;
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AISportCoach.API.Controllers;
@@ -12,6 +13,7 @@ namespace AISportCoach.API.Controllers;
 [ApiVersion("1.0")]
 [Produces("application/json")]
 [Tags("Coach")]
+[Authorize]
 public class CoachController(IMediator mediator) : ControllerBase
 {
     [HttpPost("ask", Name = CoachRouteNames.AskCoach)]

@@ -8,6 +8,7 @@ using AISportCoach.Application.UseCases.GetReportsSummary;
 using Asp.Versioning;
 using AISportCoach.API.RouteNames;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AISportCoach.API.Controllers;
@@ -17,6 +18,7 @@ namespace AISportCoach.API.Controllers;
 [ApiVersion("1.0")]
 [Produces("application/json")]
 [Tags("Reports")]
+[Authorize]
 public class ReportsController(IMediator mediator) : ControllerBase
 {
     [HttpGet("{reportId:guid}", Name = ReportRouteNames.GetReport)]

@@ -6,6 +6,7 @@ using AISportCoach.Application.UseCases.UploadVideo;
 using Asp.Versioning;
 using AISportCoach.API.RouteNames;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AISportCoach.API.Controllers;
@@ -15,6 +16,7 @@ namespace AISportCoach.API.Controllers;
 [ApiVersion("1.0")]
 [Produces("application/json")]
 [Tags("Videos")]
+[Authorize]
 public class VideosController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
