@@ -3,9 +3,12 @@ using AISportCoach.Application.Agents;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
+using AISportCoach.Domain.Entities;
+using AISportCoach.Infrastructure.Persistence;
 using AISportCoach.Infrastructure.Persistence.Repositories;
 using AISportCoach.Infrastructure.Services;
 using AISportCoach.Infrastructure.VideoProcessing;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -19,10 +22,20 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
-        // Current user
-        services.AddSingleton<ICurrentUserService, CurrentUserService>();
+        // Note: Identity and HttpContextAccessor are registered in API project's Program.cs
+        // because AddIdentity requires ASP.NET Core framework features
+
+        // Current user (Scoped for HttpContext access)
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        // Auth services
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IEmailService, EmailService>();
 
         // Repositories
+        services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IWebAuthnCredentialRepository, WebAuthnCredentialRepository>();
         services.AddScoped<IVideoRepository, VideoRepository>();
         services.AddScoped<ICoachingReportRepository, CoachingReportRepository>();
         services.AddScoped<IReportEmbeddingRepository, ReportEmbeddingRepository>();
@@ -32,6 +45,9 @@ public static class DependencyInjection
 
         // RAG options
         services.Configure<RagOptions>(configuration.GetSection("Rag"));
+
+        // JWT options
+        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
 
         // Video File API service (upload + active-check; DB is the URI cache)
         // AddHttpClient registers VideoFileService as transient and injects the configured HttpClient.
