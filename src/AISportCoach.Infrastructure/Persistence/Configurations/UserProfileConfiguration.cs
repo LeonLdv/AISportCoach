@@ -22,10 +22,5 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
 
         builder.HasIndex(p => p.UserId)
             .IsUnique();
-
-        builder.HasMany(p => p.VideoUploads)
-            .WithOne(v => v.User)
-            .HasForeignKey(v => v.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

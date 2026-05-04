@@ -18,6 +18,14 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Debug helper: Uncomment to pause startup and attach debugger in Rider
+// if (builder.Environment.IsDevelopment() && Environment.GetEnvironmentVariable("WAIT_FOR_DEBUGGER") == "1")
+// {
+//     Console.WriteLine($"Waiting for debugger to attach. Process ID: {Environment.ProcessId}");
+//     Console.WriteLine("Press any key to continue after attaching debugger...");
+//     Console.ReadKey();
+// }
+
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 // Aspire service defaults (telemetry, health checks, service discovery)
@@ -153,21 +161,46 @@ builder.Services.AddInfrastructure(builder.Configuration);
 var app = builder.Build();
 
 // Auto-migrate on startup (development convenience)
-// if (app.Environment.IsDevelopment())
-// {
-//     using var scope = app.Services.CreateScope();
-//     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//     await db.Database.MigrateAsync();
-// }
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
+
+// Seed default roles
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    var roles = new[] { "User", "Admin" };
+    foreach (var roleName in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            var result = await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+            if (result.Succeeded)
+            {
+                logger.LogInformation("Created role: {RoleName}", roleName);
+            }
+            else
+            {
+                logger.LogError("Failed to create role {RoleName}: {Errors}",
+                    roleName, string.Join(", ", result.Errors.Select(e => e.Description)));
+            }
+        }
+    }
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// HTTPS enforcement
+// HTTPS enforcement (disabled in Development to support functional tests)
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts(); // Enforce HTTPS for 1 year (default)
+    app.UseHttpsRedirection();
 }
-app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

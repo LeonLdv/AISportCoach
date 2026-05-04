@@ -9,7 +9,6 @@ namespace AISportCoach.FunctionalTests;
 [Collection(AspireCollection.Name)]
 public class VideoUploadTests(AspireFixture fixture)
 {
-    private readonly HttpClient _client = fixture.ApiClient;
     private const string UploadUrl = "/api/v1/videos";
     private static readonly string TestVideoPath = Path.Combine(
         Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
@@ -26,12 +25,14 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task Upload_EmptyFile_Returns400()
     {
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
         using var content = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent([]);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(fileContent, "file", "empty.mp4");
 
-        var response = await _client.PostAsync(UploadUrl, content);
+        var response = await client.PostAsync(UploadUrl, content);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -43,9 +44,11 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task Upload_NoFileInRequest_Returns422()
     {
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
         using var content = new MultipartFormDataContent();
 
-        var response = await _client.PostAsync(UploadUrl, content);
+        var response = await client.PostAsync(UploadUrl, content);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
     }
@@ -53,6 +56,8 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task Upload_UnsupportedExtension_Returns400()
     {
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
         using var content = new MultipartFormDataContent();
         var fileBytes = new byte[1024];
         Random.Shared.NextBytes(fileBytes);
@@ -60,7 +65,7 @@ public class VideoUploadTests(AspireFixture fixture)
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
         content.Add(fileContent, "file", "notes.txt");
 
-        var response = await _client.PostAsync(UploadUrl, content);
+        var response = await client.PostAsync(UploadUrl, content);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -72,13 +77,22 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task Upload_ValidMp4_Returns201()
     {
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
         using var content = new MultipartFormDataContent();
         await using var stream = File.OpenRead(TestVideoPath);
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(streamContent, "file", "test-serve.mp4");
 
-        var response = await _client.PostAsync(UploadUrl, content);
+        var response = await client.PostAsync(UploadUrl, content);
+
+        // Capture error details if not 201
+        if (response.StatusCode != HttpStatusCode.Created)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Upload failed with {response.StatusCode}: {errorBody}");
+        }
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -94,13 +108,15 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task GetById_AfterUpload_Returns200()
     {
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
         using var uploadContent = new MultipartFormDataContent();
         await using var stream = File.OpenRead(TestVideoPath);
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         uploadContent.Add(streamContent, "file", "retrieve-test.mp4");
 
-        var uploadResponse = await _client.PostAsync(UploadUrl, uploadContent);
+        var uploadResponse = await client.PostAsync(UploadUrl, uploadContent);
 
         Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
 
@@ -108,7 +124,7 @@ public class VideoUploadTests(AspireFixture fixture)
         using var uploadDoc = JsonDocument.Parse(uploadBody);
         var videoId = uploadDoc.RootElement.GetProperty("id").GetString();
 
-        var getResponse = await _client.GetAsync($"{UploadUrl}/{videoId}");
+        var getResponse = await client.GetAsync($"{UploadUrl}/{videoId}");
 
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         var getBody = await getResponse.Content.ReadAsStringAsync();
@@ -120,7 +136,9 @@ public class VideoUploadTests(AspireFixture fixture)
     [Fact]
     public async Task GetById_NonExistentId_Returns404()
     {
-        var response = await _client.GetAsync($"{UploadUrl}/{Guid.NewGuid()}");
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
+        var response = await client.GetAsync($"{UploadUrl}/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

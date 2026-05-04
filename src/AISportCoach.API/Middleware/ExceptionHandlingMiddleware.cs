@@ -23,14 +23,12 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         var (statusCode, title) = exception switch
         {
             // Auth exceptions
-            InvalidCredentialsException or EmailNotConfirmedException or WebAuthnVerificationException
+            InvalidCredentialsException or EmailNotConfirmedException or WebAuthnVerificationException or InvalidTokenException
                 => (HttpStatusCode.Unauthorized, "Authentication Failed"),
             UserNotFoundException
                 => (HttpStatusCode.NotFound, "User Not Found"),
             UserAlreadyExistsException
                 => (HttpStatusCode.Conflict, "User Already Exists"),
-            InvalidTokenException
-                => (HttpStatusCode.BadRequest, "Invalid Token"),
             SubscriptionRequiredException
                 => (HttpStatusCode.Forbidden, "Premium Subscription Required"),
 

@@ -12,5 +12,11 @@ public class VideoUploadConfiguration : IEntityTypeConfiguration<VideoUpload>
         builder.Property(v => v.OriginalFileName).IsRequired().HasMaxLength(500);
         builder.Property(v => v.Status).HasConversion<string>();
         builder.Property(v => v.GeminiFileUri).HasMaxLength(2000);
+
+        // Configure FK relationship to ApplicationUser
+        builder.HasOne(v => v.User)
+            .WithMany()
+            .HasForeignKey(v => v.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

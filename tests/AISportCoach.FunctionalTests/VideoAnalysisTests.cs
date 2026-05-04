@@ -23,7 +23,6 @@ namespace AISportCoach.FunctionalTests;
 [Collection(AspireCollection.Name)]
 public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
 {
-    private readonly HttpClient _client = fixture.ApiClient;
     private readonly ITestOutputHelper _output = output;
     private const string UploadUrl = "/api/v1/videos";
     private static readonly string TestVideoPath = Path.Combine(
@@ -35,19 +34,21 @@ public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
     [Fact]
     public async Task UploadAndAnalyze_WithRealGemini_ReturnsCoachingReport()
     {
+        var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
+
         var sw = Stopwatch.StartNew();
         _output.WriteLine("=== Upload and Analyze E2E Test (Real Gemini API) ===");
 
         // Arrange: Upload video (uploads to real Gemini via VideoFileService)
         _output.WriteLine("Phase 1: Uploading test video to Gemini...");
-        var videoId = await UploadTestVideoAsync("gemini-analysis-test.mp4");
+        var videoId = await UploadTestVideoAsync(client, "gemini-analysis-test.mp4");
         _output.WriteLine($"✓ Video uploaded successfully. VideoId={videoId}");
 
         // Act: Analyze the uploaded video
         _output.WriteLine("Phase 2: Requesting video analysis...");
         var analyzeUrl = $"{UploadUrl}/{videoId}/analyze";
         _output.WriteLine($"  POST {analyzeUrl}");
-        var response = await _client.PostAsync(analyzeUrl, null);
+        var response = await client.PostAsync(analyzeUrl, null);
         _output.WriteLine($"✓ Analysis response received: {response.StatusCode}");
 
         // Assert: Verify response structure
@@ -110,7 +111,7 @@ public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
     /// Helper method to upload a test video and return its ID.
     /// Each test should call this to create its own isolated video.
     /// </summary>
-    private async Task<Guid> UploadTestVideoAsync(string fileName)
+    private async Task<Guid> UploadTestVideoAsync(HttpClient client, string fileName)
     {
         var sw = Stopwatch.StartNew();
         _output.WriteLine($"  [Upload] Starting upload of {fileName}...");
@@ -124,7 +125,7 @@ public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         content.Add(streamContent, "file", fileName);
 
-        var response = await _client.PostAsync(UploadUrl, content);
+        var response = await client.PostAsync(UploadUrl, content);
         _output.WriteLine($"  [Upload] Response: {response.StatusCode}");
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

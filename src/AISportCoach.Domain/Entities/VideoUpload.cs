@@ -12,7 +12,7 @@ public class VideoUpload : AuditableEntity
     public string? GeminiFileUri { get; private set; }
 
     // Navigation property
-    public UserProfile User { get; private set; } = null!;
+    public ApplicationUser User { get; private set; } = null!;
 
     private VideoUpload() { }
 

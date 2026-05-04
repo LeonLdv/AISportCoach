@@ -668,8 +668,8 @@ namespace AISportCoach.Infrastructure.Migrations
 
             modelBuilder.Entity("AISportCoach.Domain.Entities.VideoUpload", b =>
                 {
-                    b.HasOne("AISportCoach.Domain.Entities.UserProfile", "User")
-                        .WithMany("VideoUploads")
+                    b.HasOne("AISportCoach.Domain.Entities.ApplicationUser", "User")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -755,11 +755,6 @@ namespace AISportCoach.Infrastructure.Migrations
                     b.Navigation("Observations");
 
                     b.Navigation("Recommendations");
-                });
-
-            modelBuilder.Entity("AISportCoach.Domain.Entities.UserProfile", b =>
-                {
-                    b.Navigation("VideoUploads");
                 });
 #pragma warning restore 612, 618
         }

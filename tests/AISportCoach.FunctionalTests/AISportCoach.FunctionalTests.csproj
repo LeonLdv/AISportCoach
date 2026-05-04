@@ -11,12 +11,16 @@
     <PackageReference Include="Aspire.Hosting.Testing" Version="13.1.3" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Npgsql" Version="10.0.2" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\aspire\AISportCoach.AppHost\AISportCoach.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\AISportCoach.Application\AISportCoach.Application.csproj" />
+    <ProjectReference Include="..\..\src\AISportCoach.Domain\AISportCoach.Domain.csproj" />
+    <ProjectReference Include="..\..\src\AISportCoach.Infrastructure\AISportCoach.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +29,9 @@
 
   <ItemGroup>
     <None Update="TestData\sample.mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.test.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

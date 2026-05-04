@@ -38,6 +38,10 @@ artifacts/
 ## EF Core migrations snapshots (keep migrations, ignore designer files)
 *.designer.cs
 
+## Generated migration SQL scripts (timestamped)
+db/migrations/*.sql
+!db/migrations/.gitkeep
+
 ## ASP.NET Core / Aspire
 # Aspire dashboard certs (auto-generated)
 aspire/AISportCoach.AppHost/.certs/

@@ -19,7 +19,6 @@ public class UserProfile
 
     // Navigation properties
     public ApplicationUser User { get; private set; } = null!;
-    public ICollection<VideoUpload> VideoUploads { get; private set; } = new List<VideoUpload>();
 
     // Factory method
     public static UserProfile Create(Guid userId, string displayName)
