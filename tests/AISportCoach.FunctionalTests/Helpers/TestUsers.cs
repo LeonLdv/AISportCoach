@@ -13,7 +13,7 @@ public static class TestUsers
     public static readonly TestUser Default = new(
         Email: "testuser@test.com",
         Password: "Test123!",
-        DisplayName: "Test User");
+        DisplayName: "Test User ");
 
     public record TestUser(string Email, string Password, string DisplayName);
 }
