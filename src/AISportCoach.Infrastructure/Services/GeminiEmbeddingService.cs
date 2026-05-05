@@ -9,8 +9,11 @@ public class GeminiEmbeddingService(IEmbeddingGenerator<string, Embedding<float>
     {
         var options = new EmbeddingGenerationOptions
         {
-            AdditionalProperties = new() { ["taskType"] = taskType == EmbeddingTaskType.Document
-                ? "RETRIEVAL_DOCUMENT" : "RETRIEVAL_QUERY" }
+            AdditionalProperties = new()
+            {
+                ["taskType"] = taskType == EmbeddingTaskType.Document
+                ? "RETRIEVAL_DOCUMENT" : "RETRIEVAL_QUERY"
+            }
         };
         var embeddings = await embeddingGenerator.GenerateAsync([text], options, ct);
         return embeddings[0].Vector.ToArray();

@@ -3,12 +3,10 @@ using AISportCoach.Application.Agents;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
-using AISportCoach.Domain.Entities;
-using AISportCoach.Infrastructure.Persistence;
+using AISportCoach.Infrastructure.Database;
 using AISportCoach.Infrastructure.Persistence.Repositories;
 using AISportCoach.Infrastructure.Services;
 using AISportCoach.Infrastructure.VideoProcessing;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -39,6 +37,9 @@ public static class DependencyInjection
         services.AddScoped<IVideoRepository, VideoRepository>();
         services.AddScoped<ICoachingReportRepository, CoachingReportRepository>();
         services.AddScoped<IReportEmbeddingRepository, ReportEmbeddingRepository>();
+
+        // Development seed data
+        services.AddScoped<DevelopmentSeeder>();
 
         // Gemini options
         services.Configure<GeminiOptions>(configuration.GetSection("Gemini"));
@@ -87,9 +88,9 @@ public static class DependencyInjection
         services.AddScoped<Kernel>(sp =>
         {
             var kernelBuilder = Kernel.CreateBuilder();
-            
+
             var geminiOpts = sp.GetRequiredService<IOptions<GeminiOptions>>().Value;
-            
+
             if (string.IsNullOrEmpty(geminiOpts.ApiKey))
                 throw new InvalidOperationException("Gemini:ApiKey is not configured");
             if (string.IsNullOrEmpty(geminiOpts.ModelId))
