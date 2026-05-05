@@ -3,6 +3,7 @@ using System.Text;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using AISportCoach.API;
+using AISportCoach.API.Extensions;
 using AISportCoach.API.Middleware;
 using AISportCoach.Application.UseCases.UploadVideo;
 using AISportCoach.Domain.Entities;
@@ -13,7 +14,6 @@ using AISportCoach.ServiceDefaults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,12 +61,14 @@ builder.Services.AddApiVersioning(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
-// Swagger (JWT UI temporarily disabled - Swashbuckle 10.x compatibility issue with .NET 10)
+// Swagger with JWT bearer authentication support
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c => c.EnableAnnotations());
+builder.Services.AddSwaggerGen(c =>
+{
+    c.EnableAnnotations();
+    c.AddJwtAuthentication();
+});
 builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
-
-// Note: To test auth endpoints manually, use curl or Postman with "Authorization: Bearer <token>" header
 
 // MediatR — registers all handlers from Application assembly
 builder.Services.AddMediatR(cfg =>
@@ -160,37 +162,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-// Auto-migrate on startup (development convenience)
+// Database initialization (Development only)
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-}
-
-// Seed default roles
-using (var scope = app.Services.CreateScope())
-{
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-
-    var roles = new[] { "User", "Admin" };
-    foreach (var roleName in roles)
-    {
-        if (!await roleManager.RoleExistsAsync(roleName))
-        {
-            var result = await roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
-            if (result.Succeeded)
-            {
-                logger.LogInformation("Created role: {RoleName}", roleName);
-            }
-            else
-            {
-                logger.LogError("Failed to create role {RoleName}: {Errors}",
-                    roleName, string.Join(", ", result.Errors.Select(e => e.Description)));
-            }
-        }
-    }
+    await app.MigrateDatabaseAsync();
+    await app.SeedDevelopmentDataAsync();
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
