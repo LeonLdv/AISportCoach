@@ -7,6 +7,7 @@ using Asp.Versioning;
 using AISportCoach.API.RouteNames;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AISportCoach.API.Controllers;
@@ -25,7 +26,9 @@ public class VideosController(IMediator mediator) : ControllerBase
     [EndpointDescription("Uploads a tennis video for AI analysis. Returns the created video resource with its ID.")]
     [ProducesResponseType(typeof(VideoResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    [RequestSizeLimit(600_000_000)]
+    // EXPERIMENTAL: per-action size and timeout overrides for large video uploads
+    [RequestSizeLimit(1_073_741_824)] // 1 GB — attribute requires a compile-time constant
+    [RequestTimeout("VideoUpload")]
     public async Task<ActionResult<VideoResponseDto>> Upload(
         IFormFile file,
         CancellationToken cancellationToken = default)
