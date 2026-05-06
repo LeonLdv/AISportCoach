@@ -10,17 +10,12 @@ namespace AISportCoach.FunctionalTests;
 public class VideoUploadTests(AspireFixture fixture)
 {
     private const string UploadUrl = "/api/v1/videos";
-    private static readonly string TestVideoPath = Path.Combine(
+    private static readonly string TestDataPath = Path.Combine(
         Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-        "TestData",
-        "sample.mp4"
+        "TestData"
     );
 
-    static VideoUploadTests()
-    {
-        if (!File.Exists(TestVideoPath))
-            throw new FileNotFoundException($"Test video not found at {TestVideoPath}. Ensure TestData/sample.mp4 is included in the project.");
-    }
+    private static string GetTestVideoPath(string fileName) => Path.Combine(TestDataPath, fileName);
 
     [Fact]
     public async Task Upload_EmptyFile_Returns400()
@@ -74,20 +69,21 @@ public class VideoUploadTests(AspireFixture fixture)
         Assert.Contains(".txt", doc.RootElement.GetProperty("detail").GetString());
     }
 
-    [Fact]
-    public async Task Upload_ValidMp4_Returns201()
+    [Theory]
+    [InlineData("sample.mp4")]
+   // [InlineData("Serve-Leo.mp4")] // lage file 800 Mb
+    public async Task Upload_ValidMp4_Returns201(string fileName)
     {
         var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
 
         using var content = new MultipartFormDataContent();
-        await using var stream = File.OpenRead(TestVideoPath);
+        await using var stream = File.OpenRead(GetTestVideoPath(fileName));
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
-        content.Add(streamContent, "file", "test-serve.mp4");
+        content.Add(streamContent, "file", fileName);
 
         var response = await client.PostAsync(UploadUrl, content);
 
-        // Capture error details if not 201
         if (response.StatusCode != HttpStatusCode.Created)
         {
             var errorBody = await response.Content.ReadAsStringAsync();
@@ -98,7 +94,7 @@ public class VideoUploadTests(AspireFixture fixture)
         var body = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
-        Assert.Equal("test-serve.mp4", root.GetProperty("originalFileName").GetString());
+        Assert.Equal(fileName, root.GetProperty("originalFileName").GetString());
         Assert.True(root.GetProperty("fileSizeBytes").GetInt64() > 0);
         Assert.Equal("Uploaded", root.GetProperty("status").GetString());
         Assert.True(Guid.TryParse(root.GetProperty("id").GetString(), out _));
@@ -111,7 +107,7 @@ public class VideoUploadTests(AspireFixture fixture)
         var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
 
         using var uploadContent = new MultipartFormDataContent();
-        await using var stream = File.OpenRead(TestVideoPath);
+        await using var stream = File.OpenRead(GetTestVideoPath("sample.mp4"));
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
         uploadContent.Add(streamContent, "file", "retrieve-test.mp4");

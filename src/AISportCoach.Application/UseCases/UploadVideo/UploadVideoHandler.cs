@@ -42,7 +42,7 @@ public class UploadVideoHandler(
         }
 
         logger.LogInformation("Uploading video to Gemini File API: {FileName}", request.FileName);
-        var geminiFileUri = await videoFileService.UploadVideoStreamAsync(request.FileStream, request.FileName, cancellationToken);
+            var geminiFileUri = await videoFileService.UploadVideoStreamAsync(request.FileStream, request.FileName, cancellationToken);
         logger.LogInformation("Video uploaded to Gemini successfully: Uri={GeminiFileUri}", geminiFileUri);
 
         var video = VideoUpload.Create(request.FileName, request.FileSizeBytes, geminiFileUri, currentUserService.UserId);

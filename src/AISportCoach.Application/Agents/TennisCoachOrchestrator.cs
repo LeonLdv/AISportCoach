@@ -18,6 +18,7 @@ public class TennisCoachOrchestrator(
     IVideoRepository videoRepository,
     IReportEmbeddingRepository embeddingRepository,
     IEmbeddingService embeddingService,
+    IVideoFileService videoFileService,
     ILogger<TennisCoachOrchestrator> logger)
 {
     public async Task<CoachingReport> ProcessAsync(
@@ -36,6 +37,10 @@ public class TennisCoachOrchestrator(
             logger.LogInformation(
                 "[Orchestrator] Starting analysis for video: {VideoId}, FileUri: {FileUri}, Scopes: {Scopes}",
                 video.Id, fileUri, string.Join(",", scopes));
+
+            // Gemini processes uploaded videos asynchronously; the upload handler
+            // returns as soon as bytes are stored, so the file may not yet be ACTIVE.
+            await videoFileService.WaitForFileActiveAsync(fileUri, cancellationToken);
 
             // Step 1 — single merged Gemini call for observations + optional NTRP
             logger.LogInformation("[Orchestrator] Step 1/2 — video analysis. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);

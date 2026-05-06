@@ -48,6 +48,7 @@ public async Task<string> AnalyzeVideoAsync(Kernel kernel, string fileUri, strin
 - Cap polling retries; log a warning if max attempts reached before ACTIVE state
 - Log `ElapsedMs` at each plugin call for performance monitoring
 - Do not use `Task.Delay` polling loops in plugins — polling lives in `GeminiFileService`
+- HTTP client and resilience pipeline timeouts are driven by `Gemini:HttpTimeoutMinutes` (default 10) — never hardcode timeout values in `DependencyInjection.cs`
 
 ## Patterns NOT Used Here
 

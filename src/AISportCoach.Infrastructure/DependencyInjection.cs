@@ -50,16 +50,25 @@ public static class DependencyInjection
         // JWT options
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
 
-        // Video File API service (upload + active-check; DB is the URI cache)
-        // AddHttpClient registers VideoFileService as transient and injects the configured HttpClient.
-        // The interface is resolved via a factory so the same IHttpClientFactory-managed instance is used.
+        // Video File API service (upload + active-check; DB is the URI cache).
+        // Uploads can stream up to 500MB to Gemini, so the resilience pipeline
+        // and HttpClient.Timeout are both extended — duration driven by Gemini:HttpTimeoutMinutes.
+        var httpTimeout = TimeSpan.FromMinutes(
+            configuration.GetValue<int>("Gemini:HttpTimeoutMinutes", 10));
         services.AddHttpClient<VideoFileService>()
             .ConfigureHttpClient((sp, c) =>
             {
                 var opts = sp.GetRequiredService<IOptions<GeminiOptions>>().Value;
                 c.BaseAddress = new Uri(opts.BaseUrl);
-                c.Timeout = TimeSpan.FromMinutes(10);
+                c.Timeout = httpTimeout;
+            })
+            .AddStandardResilienceHandler(options =>
+            {
+                options.TotalRequestTimeout.Timeout = httpTimeout;
+                options.AttemptTimeout.Timeout = httpTimeout;
+                options.CircuitBreaker.SamplingDuration = httpTimeout * 2;
             });
+
         services.AddTransient<IVideoFileService>(sp => sp.GetRequiredService<VideoFileService>());
 
         // Embedding service

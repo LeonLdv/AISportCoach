@@ -114,9 +114,13 @@ public class TestAuthHelper(DistributedApplication app)
     /// <summary>
     /// Creates an HttpClient for the API service.
     /// Uses HTTP in test environment (Aspire doesn't expose HTTPS endpoints by default).
+    /// Timeout is extended to 10 minutes so tests that upload large videos through
+    /// this client are not cut short by the default 100s HttpClient.Timeout.
     /// </summary>
     private HttpClient CreateHttpClient()
     {
-        return _app.CreateHttpClient(ResourceNames.ApiService);
+        var client = _app.CreateHttpClient(ResourceNames.ApiService);
+        client.Timeout = TimeSpan.FromMinutes(10);
+        return client;
     }
 }

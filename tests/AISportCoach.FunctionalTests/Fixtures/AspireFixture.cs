@@ -23,32 +23,6 @@ public class AspireFixture : IAsyncLifetime
             [
                 "--Parameters:postgres-password", "postgres"
             ]);
-        
-        //Todo make sure if we need this
-        // // Reduce log noise from Aspire resources during tests
-        // builder.Services.Configure<LoggerFilterOptions>(options =>
-        // {
-        //     // Suppress all Aspire resource logs except errors
-        //     options.Rules.Add(new LoggerFilterRule(
-        //         null, // All providers
-        //         "AISportCoach.AppHost.Resources",
-        //         LogLevel.None, // Suppress all logs
-        //         null));
-        //
-        //     // Keep critical Aspire framework logs
-        //     options.Rules.Add(new LoggerFilterRule(
-        //         null,
-        //         "Aspire.Hosting",
-        //         LogLevel.Warning,
-        //         null));
-        //
-        //     // Keep test fixture and API logs visible
-        //     options.Rules.Add(new LoggerFilterRule(
-        //         null,
-        //         "AISportCoach.FunctionalTests",
-        //         LogLevel.Information,
-        //         null));
-        // });
 
         _app = await builder.BuildAsync();
 
@@ -170,8 +144,11 @@ public class AspireFixture : IAsyncLifetime
     /// Creates an HttpClient for the API service.
     /// Uses HTTP in test environment (Aspire doesn't expose HTTPS endpoints by default).
     /// </summary>
-    public HttpClient CreateHttpClient()
+    /// <param name="timeout">Optional timeout override. Default is 10 minutes for large file uploads.</param>
+    private HttpClient CreateHttpClient(TimeSpan? timeout = null)
     {
-        return _app!.CreateHttpClient(ResourceNames.ApiService);
+        var client = _app!.CreateHttpClient(ResourceNames.ApiService);
+        client.Timeout = timeout ?? TimeSpan.FromMinutes(10); // Long timeout for video uploads
+        return client;
     }
 }

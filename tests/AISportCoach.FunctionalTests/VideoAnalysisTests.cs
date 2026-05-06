@@ -25,23 +25,24 @@ public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
 {
     private readonly ITestOutputHelper _output = output;
     private const string UploadUrl = "/api/v1/videos";
-    private static readonly string TestVideoPath = Path.Combine(
+    private static readonly string TestDataDirectory = Path.Combine(
         Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-        "TestData",
-        "sample.mp4"
+        "TestData"
     );
 
-    [Fact]
-    public async Task UploadAndAnalyze_WithRealGemini_ReturnsCoachingReport()
+    [Theory]
+    [InlineData("sample.mp4")]
+   // [InlineData("Serve-Leo.mp4")] // Lage file 800 Mb
+    public async Task UploadAndAnalyze_WithRealGemini_ReturnsCoachingReport(string videoFileName)
     {
         var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();
 
         var sw = Stopwatch.StartNew();
-        _output.WriteLine("=== Upload and Analyze E2E Test (Real Gemini API) ===");
+        _output.WriteLine($"=== Upload and Analyze E2E Test (Real Gemini API) - {videoFileName} ===");
 
         // Arrange: Upload video (uploads to real Gemini via VideoFileService)
-        _output.WriteLine("Phase 1: Uploading test video to Gemini...");
-        var videoId = await UploadTestVideoAsync(client, "gemini-analysis-test.mp4");
+        _output.WriteLine($"Phase 1: Uploading test video '{videoFileName}' to Gemini...");
+        var videoId = await UploadTestVideoAsync(client, videoFileName);
         _output.WriteLine($"✓ Video uploaded successfully. VideoId={videoId}");
 
         // Act: Analyze the uploaded video
@@ -111,22 +112,29 @@ public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
     /// Helper method to upload a test video and return its ID.
     /// Each test should call this to create its own isolated video.
     /// </summary>
-    private async Task<Guid> UploadTestVideoAsync(HttpClient client, string fileName)
+    private async Task<Guid> UploadTestVideoAsync(HttpClient client, string videoFileName)
     {
         var sw = Stopwatch.StartNew();
-        _output.WriteLine($"  [Upload] Starting upload of {fileName}...");
+        _output.WriteLine($"  [Upload] Starting upload of {videoFileName}...");
 
+        var testVideoPath = Path.Combine(TestDataDirectory, videoFileName);
         using var content = new MultipartFormDataContent();
-        await using var stream = File.OpenRead(TestVideoPath);
-        var fileSize = new FileInfo(TestVideoPath).Length;
+        await using var stream = File.OpenRead(testVideoPath);
+        var fileSize = new FileInfo(testVideoPath).Length;
         _output.WriteLine($"  [Upload] File size: {fileSize / 1024.0:F2} KB");
 
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
-        content.Add(streamContent, "file", fileName);
+        content.Add(streamContent, "file", videoFileName);
 
         var response = await client.PostAsync(UploadUrl, content);
         _output.WriteLine($"  [Upload] Response: {response.StatusCode}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"  [Upload] Error body: {errorBody}");
+        }
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 

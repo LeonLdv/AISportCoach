@@ -12,6 +12,7 @@ using AISportCoach.Infrastructure;
 using AISportCoach.Infrastructure.Persistence;
 using AISportCoach.ServiceDefaults;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -28,8 +29,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
+// Configure Kestrel for large file uploads (driven by VideoStorage:MaxFileSizeMB)
+var maxUploadBytes = builder.Configuration.GetValue<long>("VideoStorage:MaxFileSizeMB", 500) * 1024 * 1024;
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = maxUploadBytes;
+});
+
 // Aspire service defaults (telemetry, health checks, service discovery)
+// ServiceDefaults now includes conditional 10-minute timeouts for VideoFileService
 builder.AddServiceDefaults();
+
+// Request timeout middleware (10 minutes for video uploads)
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.AddPolicy("VideoUpload", TimeSpan.FromMinutes(10));
+});
 
 // Controllers + validation error factory
 builder.Services.AddControllers()
@@ -46,6 +61,12 @@ builder.Services.AddControllers()
                 })
             { ContentTypes = { "application/problem+json" } };
     });
+
+// Configure form options for large file uploads (driven by VideoStorage:MaxFileSizeMB)
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = maxUploadBytes;
+});
 
 // API versioning
 builder.Services.AddApiVersioning(options =>
@@ -177,6 +198,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts(); // Enforce HTTPS for 1 year (default)
     app.UseHttpsRedirection();
 }
+
+app.UseRequestTimeouts();
 
 app.UseAuthentication();
 app.UseAuthorization();

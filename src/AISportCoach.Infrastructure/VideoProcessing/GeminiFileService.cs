@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using AISportCoach.Application.Interfaces;
@@ -21,10 +22,13 @@ public class VideoFileService(
 
     public async Task<string> UploadVideoStreamAsync(Stream stream, string fileName, CancellationToken ct = default)
     {
+        var sw = Stopwatch.StartNew();
         logger.LogInformation("Uploading video stream to AI File API: {FileName}", fileName);
 
-        using var ms = new System.IO.MemoryStream();
+        using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, ct);
+        logger.LogDebug("Stream copied to memory in {ElapsedMs}ms ({SizeKB} KB)", sw.ElapsedMilliseconds, ms.Length / 1024);
+
         var fileBytes = ms.ToArray();
         var displayName = Path.GetFileName(fileName);
         var mimeType = Path.GetExtension(fileName).ToLowerInvariant() switch
@@ -51,7 +55,10 @@ public class VideoFileService(
 
     private async Task<string> UploadBytesAsync(byte[] fileBytes, string displayName, string mimeType, CancellationToken ct)
     {
+        var sw = Stopwatch.StartNew();
+
         // Step 1 — initiate resumable upload
+        logger.LogDebug("Initiating resumable upload for {DisplayName} ({SizeKB} KB)", displayName, fileBytes.Length / 1024);
         var initiateRequest = new HttpRequestMessage(
             HttpMethod.Post,
             $"{UploadPath}?uploadType=resumable&key={_apiKey}");
@@ -65,10 +72,13 @@ public class VideoFileService(
 
         var initiateResponse = await http.SendAsync(initiateRequest, ct);
         initiateResponse.EnsureSuccessStatusCode();
+        logger.LogDebug("Upload initiated in {ElapsedMs}ms", sw.ElapsedMilliseconds);
 
         var uploadUrl = initiateResponse.Headers.GetValues("X-Goog-Upload-URL").First();
 
         // Step 2 — upload file bytes
+        sw.Restart();
+        logger.LogDebug("Uploading {SizeKB} KB to Gemini", fileBytes.Length / 1024);
         var uploadRequest = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
         uploadRequest.Content = new ByteArrayContent(fileBytes);
         uploadRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
@@ -77,6 +87,7 @@ public class VideoFileService(
 
         var uploadResponse = await http.SendAsync(uploadRequest, ct);
         uploadResponse.EnsureSuccessStatusCode();
+        logger.LogInformation("Video bytes uploaded in {ElapsedMs}ms", sw.ElapsedMilliseconds);
 
         var uploadResult = await uploadResponse.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(uploadResult);
@@ -84,7 +95,8 @@ public class VideoFileService(
 
         logger.LogInformation("Video uploaded. File URI: {FileUri}", fileUri);
 
-        await WaitForFileActiveAsync(fileUri, ct);
+        // Don't wait for ACTIVE here — Gemini processing for large videos can take
+        // minutes. Callers (orchestrator) wait for ACTIVE just before analysis.
         return fileUri;
     }
 
@@ -108,11 +120,14 @@ public class VideoFileService(
         }
     }
 
-    private async Task WaitForFileActiveAsync(string fileUri, CancellationToken ct)
+    public async Task WaitForFileActiveAsync(string fileUri, CancellationToken ct = default)
     {
         var fileName = fileUri.Split('/').TakeLast(2).Aggregate((a, b) => $"{a}/{b}");
 
-        for (var i = 0; i < 20; i++)
+        // Cap at 60 attempts × 5s = 5 minutes. Gemini processing scales with file size;
+        // 846MB videos have been observed taking >100s to become ACTIVE.
+        const int maxAttempts = 60;
+        for (var i = 0; i < maxAttempts; i++)
         {
             ct.ThrowIfCancellationRequested();
             var response = await http.GetStringAsync(

@@ -50,7 +50,8 @@ Migrations apply automatically on startup in Development.
 |-----|----------|-------|
 | `Gemini:ApiKey` | Yes | Use User Secrets locally |
 | `Gemini:ModelId` | Yes | Default: `gemini-2.5-flash` |
-| `VideoStorage:MaxFileSizeMB` | No | Default: 500 |
+| `Gemini:HttpTimeoutMinutes` | No | Default: 10. HttpClient and resilience pipeline timeouts for Gemini File API uploads |
+| `VideoStorage:MaxFileSizeMB` | No | Default: 500. Also drives Kestrel `MaxRequestBodySize` and `FormOptions.MultipartBodyLengthLimit` |
 | `VideoStorage:AllowedExtensions` | No | Default: `.mp4 .mov .avi .mkv` |
 | `ConnectionStrings:tenniscoach` | Yes | Injected by Aspire |
 
