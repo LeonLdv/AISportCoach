@@ -1,21 +1,15 @@
 #pragma warning disable SKEXP0070
-using System.Text;
 using Asp.Versioning;
 using Asp.Versioning.ApiExplorer;
 using AISportCoach.API;
 using AISportCoach.API.Extensions;
 using AISportCoach.API.Middleware;
 using AISportCoach.Application.UseCases.UploadVideo;
-using AISportCoach.Domain.Entities;
-using AISportCoach.Domain.Enums;
 using AISportCoach.Infrastructure;
 using AISportCoach.Infrastructure.Persistence;
 using AISportCoach.ServiceDefaults;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,74 +95,8 @@ builder.AddNpgsqlDbContext<AppDbContext>("tenniscoach");
 // HttpContextAccessor (required by CurrentUserService)
 builder.Services.AddHttpContextAccessor();
 
-// Identity
-builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
-{
-    // Password settings
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequiredLength = 8;
-
-    // Lockout settings
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-    options.Lockout.MaxFailedAccessAttempts = 5;
-    options.Lockout.AllowedForNewUsers = true;
-
-    // User settings
-    options.User.RequireUniqueEmail = true;
-    options.SignIn.RequireConfirmedEmail = false; // Set to true when email service is implemented
-})
-.AddEntityFrameworkStores<AppDbContext>()
-.AddDefaultTokenProviders();
-
-// JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
-    ?? throw new InvalidOperationException("JWT:SecretKey is not configured");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "AISportCoach.API";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "AISportCoach.WebApp";
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecretKey)),
-        ClockSkew = TimeSpan.Zero // Strict expiry
-    };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
-        {
-            if (context.Exception is SecurityTokenExpiredException)
-            {
-                context.Response.Headers.Append("Token-Expired", "true");
-            }
-            return Task.CompletedTask;
-        }
-    };
-});
-
-// Authorization Policies
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("Premium", policy => policy.RequireClaim(
-        "subscription_tier",
-        SubscriptionTier.Premium.ToString(),
-        SubscriptionTier.Admin.ToString()))
-    .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+// Identity, JWT authentication, and authorization policies
+builder.Services.AddAuthenticationAndAuthorization(builder.Configuration);
 
 // HSTS configuration (production only)
 builder.Services.AddHsts(options =>
