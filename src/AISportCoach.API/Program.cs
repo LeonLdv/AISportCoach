@@ -95,8 +95,8 @@ builder.AddNpgsqlDbContext<AppDbContext>("tenniscoach");
 // HttpContextAccessor (required by CurrentUserService)
 builder.Services.AddHttpContextAccessor();
 
-// Identity, JWT authentication, and authorization policies
-builder.Services.AddAuthenticationAndAuthorization(builder.Configuration);
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddAuthorizationPolicies();
 
 // HSTS configuration (production only)
 builder.Services.AddHsts(options =>
