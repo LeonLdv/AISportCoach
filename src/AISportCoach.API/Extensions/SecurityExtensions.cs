@@ -8,9 +8,9 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AISportCoach.API.Extensions;
 
-public static class AuthenticationExtensions
+public static class SecurityExtensions
 {
-    public static IServiceCollection AddAuthenticationAndAuthorization(
+    public static IServiceCollection AddJwtAuthentication(
         this IServiceCollection services, IConfiguration configuration)
     {
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -69,6 +69,12 @@ public static class AuthenticationExtensions
             };
         });
 
+        return services;
+    }
+
+    public static IServiceCollection AddAuthorizationPolicies(
+        this IServiceCollection services)
+    {
         services.AddAuthorizationBuilder()
             .AddPolicy("Premium", policy => policy.RequireClaim(
                 "subscription_tier",
