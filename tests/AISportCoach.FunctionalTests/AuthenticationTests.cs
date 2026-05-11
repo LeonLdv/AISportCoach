@@ -18,6 +18,8 @@ public class AuthenticationTests(AspireFixture fixture)
     private const string LogoutUrl = "/api/v1/auth/logout";
     private const string MeUrl = "/api/v1/auth/me";
 
+    private const string TestPassword = "Test123!";
+
     #region Register Tests
 
     [Fact]
@@ -29,7 +31,7 @@ public class AuthenticationTests(AspireFixture fixture)
         var request = new
         {
             Email = email,
-            Password = "Test123!",
+            Password = TestPassword,
             DisplayName = "Test User"
         };
 
@@ -56,7 +58,7 @@ public class AuthenticationTests(AspireFixture fixture)
         var request = new
         {
             Email = email,
-            Password = "Test123!",
+            Password = TestPassword,
             DisplayName = "First User"
         };
 
@@ -77,7 +79,7 @@ public class AuthenticationTests(AspireFixture fixture)
         var request = new
         {
             Email = "not-an-email",
-            Password = "Test123!",
+            Password = TestPassword,
             DisplayName = "Test User"
         };
 
@@ -115,7 +117,7 @@ public class AuthenticationTests(AspireFixture fixture)
     {
         var client = fixture.ApiClient;
         var email = $"login-test-{Guid.NewGuid()}@example.com";
-        var password = "Test123!";
+        var password = TestPassword;
 
         // Register user first
         await RegisterUserAsync(client, email, password, "Login Test User");
@@ -167,7 +169,7 @@ public class AuthenticationTests(AspireFixture fixture)
         var loginRequest = new
         {
             Email = "nonexistent@example.com",
-            Password = "Test123!"
+            Password = TestPassword
         };
 
         var response = await client.PostAsJsonAsync(LoginUrl, loginRequest);
@@ -182,7 +184,7 @@ public class AuthenticationTests(AspireFixture fixture)
         var email = $"password-test-{Guid.NewGuid()}@example.com";
 
         // Register user first
-        await RegisterUserAsync(client, email, "Test123!", "Password Test User");
+        await RegisterUserAsync(client, email, TestPassword, "Password Test User");
 
         // Try to login with wrong password
         var loginRequest = new
@@ -207,8 +209,8 @@ public class AuthenticationTests(AspireFixture fixture)
         var email = $"refresh-test-{Guid.NewGuid()}@example.com";
 
         // Register and login to get initial tokens
-        await RegisterUserAsync(client, email, "Test123!", "Refresh Test User");
-        var (accessToken, refreshToken) = await LoginUserAsync(client, email, "Test123!");
+        await RegisterUserAsync(client, email, TestPassword, "Refresh Test User");
+        var (accessToken, refreshToken) = await LoginUserAsync(client, email, TestPassword);
 
         // Wait a moment to ensure new token will have different timestamp
         await Task.Delay(100);
@@ -257,8 +259,8 @@ public class AuthenticationTests(AspireFixture fixture)
         var email = $"revoked-test-{Guid.NewGuid()}@example.com";
 
         // Register and login to get tokens
-        await RegisterUserAsync(client, email, "Test123!", "Revoked Test User");
-        var (_, refreshToken) = await LoginUserAsync(client, email, "Test123!");
+        await RegisterUserAsync(client, email, TestPassword, "Revoked Test User");
+        var (_, refreshToken) = await LoginUserAsync(client, email, TestPassword);
 
         // Revoke the token by logging out
         var logoutRequest = new { RefreshToken = refreshToken };
@@ -282,8 +284,8 @@ public class AuthenticationTests(AspireFixture fixture)
         var email = $"logout-test-{Guid.NewGuid()}@example.com";
 
         // Register and login
-        await RegisterUserAsync(client, email, "Test123!", "Logout Test User");
-        var (_, refreshToken) = await LoginUserAsync(client, email, "Test123!");
+        await RegisterUserAsync(client, email, TestPassword, "Logout Test User");
+        var (_, refreshToken) = await LoginUserAsync(client, email, TestPassword);
 
         // Logout
         var logoutRequest = new { RefreshToken = refreshToken };
@@ -315,14 +317,14 @@ public class AuthenticationTests(AspireFixture fixture)
         var displayName = "Me Test User";
 
         // Get authenticated client (registers and logs in a user)
-        var client = await fixture.AuthHelper.GetAuthenticatedClientAsync(email, "Test123!");
+        var client = await fixture.AuthHelper.GetAuthenticatedClientAsync(email, TestPassword);
 
         // Note: We need to register with the specific display name first
         // Let's create a fresh user with known details
         var freshClient = fixture.ApiClient;
         var freshEmail = $"me-fresh-{Guid.NewGuid()}@example.com";
-        await RegisterUserAsync(freshClient, freshEmail, "Test123!", displayName);
-        var (accessToken, _) = await LoginUserAsync(freshClient, freshEmail, "Test123!");
+        await RegisterUserAsync(freshClient, freshEmail, TestPassword, displayName);
+        var (accessToken, _) = await LoginUserAsync(freshClient, freshEmail, TestPassword);
 
         freshClient.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
