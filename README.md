@@ -91,7 +91,7 @@ Upload video
 | **Semantic Search** | pgvector (HNSW index), Gemini text-embedding-004 (768-dim) |
 | **Database** | PostgreSQL 17 + EF Core 10 |
 | **Architecture** | MediatR 12 (CQRS), Clean Architecture, Repository pattern |
-| **Orchestration** | .NET Aspire 9 (AppHost + ServiceDefaults) |
+| **Orchestration** | .NET Aspire 13 (AppHost + ServiceDefaults) |
 | **Testing** | xUnit, Moq, integration tests against real Gemini API |
 | **API Docs** | Swashbuckle/Swagger (`/swagger`) |
 
@@ -104,18 +104,27 @@ Upload video
 
 ### Configuration
 
-Add your Gemini API key to user secrets:
+All secrets are managed centrally in the AppHost project's user secrets. Set them once:
 
 ```bash
-dotnet user-secrets set "Gemini:ApiKey" "YOUR_API_KEY_HERE" --project src/AISportCoach.API
+# PostgreSQL password (any value works locally)
+dotnet user-secrets set "Parameters:postgres-password" "YOUR_PG_PASSWORD" --project aspire/AISportCoach.AppHost
+
+# Gemini API key
+dotnet user-secrets set "Parameters:gemini-api-key" "YOUR_GEMINI_API_KEY" --project aspire/AISportCoach.AppHost
+
+# JWT signing key (min 32 characters)
+dotnet user-secrets set "Parameters:jwt-secret-key" "YOUR_JWT_SECRET_MIN_32_CHARS" --project aspire/AISportCoach.AppHost
 ```
 
-Optional configuration (uses defaults if not set):
+Aspire injects these into the API at runtime — no secrets needed in the API project itself.
+
+Optional configuration in `src/AISportCoach.API/appsettings.json`:
 
 | Key | Default | Notes |
 |-----|---------|-------|
-| `Gemini:ModelId` | `gemini-2.5-flash` | Gemini model to use |
-| `VideoStorage:MaxFileSizeMB` | `500` | Max upload size |
+| `Gemini:ModelId` | `gemini-3-flash-preview` | Gemini model to use |
+| `VideoStorage:MaxFileSizeMB` | `1000` | Max upload size |
 | `VideoStorage:AllowedExtensions` | `.mp4 .mov .avi .mkv` | Allowed video formats |
 
 ### Run
@@ -134,13 +143,20 @@ Migrations apply automatically on startup in Development mode.
 
 ### Test
 
-Integration tests require a Gemini API key in `appsettings.test.json`:
+Integration tests hit the real Gemini API. Add your key to `appsettings.test.json`:
+
+```json
+// tests/AISportCoach.IntegrationTests/appsettings.test.json
+{
+  "Gemini": {
+    "ApiKey": "YOUR_GEMINI_API_KEY"
+  }
+}
+```
+
+Then run:
 
 ```bash
-# Add API key to test project
-dotnet user-secrets set "Gemini:ApiKey" "YOUR_API_KEY_HERE" --project tests/AISportCoach.IntegrationTests
-
-# Run tests (hits real Gemini API)
 dotnet test
 ```
 
@@ -185,7 +201,6 @@ aspire/
 
 tests/
   AISportCoach.IntegrationTests/ # Integration tests (real Gemini API)
-  AISportCoach.FunctionalTests/  # End-to-end tests
 
 .claude/
   rules/                  # Architecture, API, database, AI, testing conventions
