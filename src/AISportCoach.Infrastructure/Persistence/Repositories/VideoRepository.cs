@@ -9,7 +9,7 @@ public class VideoRepository(AppDbContext db) : IVideoRepository
     public Task<VideoUpload?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => db.VideoUploads.FirstOrDefaultAsync(v => v.Id == id, ct);
 
-    public Task<VideoUpload?> GetByIdAndUserAsync(Guid id, Guid userId, CancellationToken ct = default)
+    public Task<VideoUpload?> GetById(Guid id, Guid userId, CancellationToken ct = default)
         => db.VideoUploads.FirstOrDefaultAsync(v => v.Id == id && v.UserId == userId, ct);
 
     public async Task<IEnumerable<VideoUpload>> GetByUserAsync(Guid userId, CancellationToken ct = default)

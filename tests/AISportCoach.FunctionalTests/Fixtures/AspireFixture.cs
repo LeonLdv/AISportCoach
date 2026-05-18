@@ -34,14 +34,14 @@ public class AspireFixture : IAsyncLifetime
         await _app.StartAsync();
         Logger.LogInformation("Aspire test application started");
 
-        // Initialize default test user
-        await InitializeDefaultTestUserAsync();
-
         Logger.LogInformation("Waiting for {ServiceName} to become healthy...", ResourceNames.ApiService);
         await _app.ResourceNotifications
             .WaitForResourceHealthyAsync(ResourceNames.ApiService)
             .WaitAsync(TimeSpan.FromSeconds(120));
         Logger.LogInformation("{ServiceName} is healthy and ready", ResourceNames.ApiService);
+
+        // Initialize default test user
+        await InitializeDefaultTestUserAsync();
 
         ApiClient = CreateHttpClient();
         AuthHelper = new TestAuthHelper(_app);

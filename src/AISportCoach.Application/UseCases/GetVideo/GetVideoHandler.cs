@@ -12,7 +12,7 @@ public class GetVideoHandler(
 {
     public async Task<VideoUpload> Handle(GetVideoQuery request, CancellationToken cancellationToken)
     {
-        return await videoRepository.GetByIdAndUserAsync(request.VideoId, currentUserService.UserId, cancellationToken)
+        return await videoRepository.GetById(request.VideoId, currentUserService.UserId, cancellationToken)
             ?? throw new VideoNotFoundException(request.VideoId);
     }
 }

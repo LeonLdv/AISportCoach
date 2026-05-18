@@ -41,8 +41,11 @@ public class AppDbContext(
         var utcNow = DateTime.UtcNow;
 
         // Resolve ICurrentUserService from HttpContext (DbContext pooling compatible)
-        // Falls back to system user if no HttpContext available (e.g., migrations, background jobs)
-        var currentUserService = _httpContextAccessor?.HttpContext?.RequestServices.GetService<ICurrentUserService>();
+        // Falls back to system user if unauthenticated (e.g., register, migrations, background jobs)
+        var isAuthenticated = _httpContextAccessor?.HttpContext?.User?.Identity?.IsAuthenticated == true;
+        var currentUserService = isAuthenticated
+            ? _httpContextAccessor!.HttpContext!.RequestServices.GetService<ICurrentUserService>()
+            : null;
         var userId = currentUserService?.UserId ?? SystemUser.Id;
 
         foreach (var entry in ChangeTracker.Entries<AuditableEntity>())

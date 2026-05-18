@@ -20,25 +20,25 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
     private static Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var (statusCode, title) = exception switch
+        var (statusCode, title, detail) = exception switch
         {
             // Auth exceptions
             InvalidCredentialsException or EmailNotConfirmedException or WebAuthnVerificationException or InvalidTokenException
-                => (HttpStatusCode.Unauthorized, "Authentication Failed"),
+                => (HttpStatusCode.Unauthorized, "Authentication Failed", exception.Message),
             UserNotFoundException
-                => (HttpStatusCode.NotFound, "User Not Found"),
+                => (HttpStatusCode.NotFound, "User Not Found", exception.Message),
             UserAlreadyExistsException
-                => (HttpStatusCode.Conflict, "User Already Exists"),
+                => (HttpStatusCode.Conflict, "User Already Exists", exception.Message),
             SubscriptionRequiredException
-                => (HttpStatusCode.Forbidden, "Premium Subscription Required"),
+                => (HttpStatusCode.Forbidden, "Premium Subscription Required", exception.Message),
 
             // Existing exceptions
             VideoNotFoundException or ReportNotFoundException
-                => (HttpStatusCode.NotFound, "Resource Not Found"),
+                => (HttpStatusCode.NotFound, "Resource Not Found", exception.Message),
             VideoTooLargeException or UnsupportedVideoFormatException
-                => (HttpStatusCode.BadRequest, "Invalid Request"),
+                => (HttpStatusCode.BadRequest, "Invalid Request", exception.Message),
             _
-                => (HttpStatusCode.InternalServerError, "Internal Server Error")
+                => (HttpStatusCode.InternalServerError, "Internal Server Error", "An unexpected error occurred. Please try again later.")
         };
 
         context.Response.ContentType = "application/problem+json";
@@ -48,7 +48,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             Status = (int)statusCode,
             Title = title,
-            Detail = exception.Message,
+            Detail = detail,
             Instance = context.Request.Path
         };
 

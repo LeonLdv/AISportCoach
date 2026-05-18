@@ -32,7 +32,7 @@ public class VideoAnalysisTests(AspireFixture fixture, ITestOutputHelper output)
 
     [Theory]
     [InlineData("sample.mp4")]
-   // [InlineData("Serve-Leo.mp4")] // Lage file 800 Mb
+   // [InlineData("Serve-Leo.mp4")] // Large file 800 Mb
     public async Task UploadAndAnalyze_WithRealGemini_ReturnsCoachingReport(string videoFileName)
     {
         var client = await fixture.AuthHelper.GetDefaultAuthenticatedClientAsync();

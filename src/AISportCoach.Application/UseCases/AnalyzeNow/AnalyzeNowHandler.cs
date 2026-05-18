@@ -19,7 +19,7 @@ public class AnalyzeNowHandler(
         logger.LogInformation("Starting video analysis for VideoId={VideoId}, Scopes={Scopes}",
             request.VideoId, request.Scopes?.Count > 0 ? string.Join(", ", request.Scopes) : "All");
 
-        var video = await videoRepository.GetByIdAndUserAsync(request.VideoId, currentUserService.UserId, cancellationToken)
+        var video = await videoRepository.GetById(request.VideoId, currentUserService.UserId, cancellationToken)
             ?? throw new VideoNotFoundException(request.VideoId);
 
         logger.LogDebug("Video found: FileName={FileName}, Status={Status}, GeminiFileUri={HasUri}",

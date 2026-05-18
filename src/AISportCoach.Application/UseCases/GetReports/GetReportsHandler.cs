@@ -12,7 +12,6 @@ public class GetReportsHandler(
 {
     public async Task<PagedResult<CoachingReport>> Handle(GetReportsQuery request, CancellationToken cancellationToken)
     {
-        var pageSize = Math.Min(request.PageSize, 50);
-        return await reportRepository.GetPagedByUserAsync(currentUserService.UserId, request.Page, pageSize, cancellationToken);
+        return await reportRepository.GetPagedByUserAsync(currentUserService.UserId, request.Page, request.PageSize, cancellationToken);
     }
 }

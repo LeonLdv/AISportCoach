@@ -68,7 +68,7 @@ public class AuthenticationTests(AspireFixture fixture)
 
         // Try to register again with same email
         var secondResponse = await client.PostAsJsonAsync(RegisterUrl, request);
-        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Asp.Versioning.ApiExplorer;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
@@ -27,5 +28,25 @@ public static class SwaggerExtensions
         });
 
         return options;
+    }
+
+    public static WebApplication UseSwaggerWithVersioning(this WebApplication app)
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+            foreach (var description in provider.ApiVersionDescriptions)
+            {
+                var label = description.IsDeprecated
+                    ? $"{description.GroupName} (deprecated)"
+                    : description.GroupName;
+                c.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json",
+                    $"AI Tennis Coach API {label}");
+            }
+            c.RoutePrefix = "swagger";
+        });
+
+        return app;
     }
 }

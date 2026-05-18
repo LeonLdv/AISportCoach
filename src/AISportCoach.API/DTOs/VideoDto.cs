@@ -51,5 +51,5 @@ public record PaginationQuery(
     int Page = 1,
 
     [FromQuery(Name = "pageSize")]
-    [Range(1, 100, ErrorMessage = "Page size must be between 1 and 100.")]
+    [Range(1, 50, ErrorMessage = "Page size must be between 1 and 50.")]
     int PageSize = 10);

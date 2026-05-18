@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using AISportCoach.Application.Interfaces;
-using AISportCoach.Domain.Constants;
 using AISportCoach.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 
@@ -14,10 +13,17 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         get
         {
             if (httpContextAccessor.HttpContext?.User == null)
-                return SystemUser.Id;
+                throw new InvalidOperationException(
+                    "UserId cannot be accessed without an active HTTP context. " +
+                    "This typically means the request was made outside of an HTTP request scope.");
 
             var userId = GetClaimValue(ClaimTypes.NameIdentifier, Guid.Parse);
-            return userId != default ? userId : SystemUser.Id;
+            if (userId == Guid.Empty)
+                throw new InvalidOperationException(
+                    "NameIdentifier claim is missing or invalid. " +
+                    "Ensure the JWT token is valid and the middleware is configured correctly.");
+
+            return userId;
         }
     }
 
@@ -26,9 +32,17 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         get
         {
             if (httpContextAccessor.HttpContext?.User == null)
-                return SystemUser.Email;
+                throw new InvalidOperationException(
+                    "Email cannot be accessed without an active HTTP context. " +
+                    "This typically means the request was made outside of an HTTP request scope.");
 
-            return GetClaimValue(ClaimTypes.Email, s => s) ?? SystemUser.Email;
+            var email = GetClaimValue(ClaimTypes.Email, s => s);
+            if (string.IsNullOrEmpty(email))
+                throw new InvalidOperationException(
+                    "Email claim is missing or empty. " +
+                    "Ensure the JWT token is valid and the middleware is configured correctly.");
+
+            return email;
         }
     }
 
@@ -37,9 +51,17 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         get
         {
             if (httpContextAccessor.HttpContext?.User == null)
-                return new[] { "Admin" };
+                throw new InvalidOperationException(
+                    "Roles cannot be accessed without an active HTTP context. " +
+                    "This typically means the request was made outside of an HTTP request scope.");
 
-            return httpContextAccessor.HttpContext.User.FindAll(ClaimTypes.Role).Select(c => c.Value);
+            var roles = httpContextAccessor.HttpContext.User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+            if (roles.Count == 0)
+                throw new InvalidOperationException(
+                    "Role claims are missing. " +
+                    "Ensure the JWT token is valid and includes role claims.");
+
+            return roles;
         }
     }
 
@@ -48,7 +70,7 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         get
         {
             if (httpContextAccessor.HttpContext?.User == null)
-                return SubscriptionTier.Admin;
+                return SubscriptionTier.Free;
 
             var tier = GetClaimValue("subscription_tier", s => Enum.Parse<SubscriptionTier>(s));
             return tier != default ? tier : SubscriptionTier.Free;

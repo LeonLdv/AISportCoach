@@ -11,7 +11,7 @@ public class ReportGenerationPlugin(ILogger<ReportGenerationPlugin> logger)
     [Description("Generates a structured coaching report with improvement recommendations based on technique analysis")]
     public async Task<string> GenerateCoachingReportAsync(
         Kernel kernel,
-        [Description("JSON object with classified observations and score from TechniqueEvaluationPlugin")] string techniqueAnalysisJson,
+        [Description("JSON object with technique observations from video analysis")] string techniqueAnalysisJson,
         [Description("Optional summary of the player's past sessions for trend analysis")] string? playerHistorySummary = null,
         [Description("Optional NTRP rating JSON produced by NtrpRatingPlugin")] string? ntrpJson = null)
     {

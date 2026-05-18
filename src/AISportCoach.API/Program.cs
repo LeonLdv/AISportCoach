@@ -1,6 +1,5 @@
 #pragma warning disable SKEXP0070
 using Asp.Versioning;
-using Asp.Versioning.ApiExplorer;
 using AISportCoach.API;
 using AISportCoach.API.Extensions;
 using AISportCoach.API.Middleware;
@@ -13,13 +12,6 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Debug helper: Uncomment to pause startup and attach debugger in Rider
-// if (builder.Environment.IsDevelopment() && Environment.GetEnvironmentVariable("WAIT_FOR_DEBUGGER") == "1")
-// {
-//     Console.WriteLine($"Waiting for debugger to attach. Process ID: {Environment.ProcessId}");
-//     Console.WriteLine("Press any key to continue after attaching debugger...");
-//     Console.ReadKey();
-// }
 
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
@@ -106,6 +98,9 @@ builder.Services.AddHsts(options =>
     options.Preload = true;
 });
 
+builder.Services.AddCorsPolicy(builder.Configuration);
+builder.Services.AddAuthRateLimiter(builder.Configuration);
+
 // Infrastructure (repositories, SK kernel, video processing, background worker)
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -129,23 +124,15 @@ if (!app.Environment.IsDevelopment())
 
 app.UseRequestTimeouts();
 
+app.UseCors();
+
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    var provider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
-    foreach (var description in provider.ApiVersionDescriptions)
-    {
-        var label = description.IsDeprecated
-            ? $"{description.GroupName} (deprecated)"
-            : description.GroupName;
-        c.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json",
-            $"AI Tennis Coach API {label}");
-    }
-    c.RoutePrefix = "swagger";
-});
+if (app.Environment.IsDevelopment())
+    app.UseSwaggerWithVersioning();
 
 app.MapControllers();
 app.MapDefaultEndpoints(); // Aspire health check endpoints

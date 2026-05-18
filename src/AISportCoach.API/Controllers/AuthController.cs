@@ -7,6 +7,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace AISportCoach.API.Controllers;
@@ -16,6 +17,7 @@ namespace AISportCoach.API.Controllers;
 [ApiVersion("1.0")]
 [Produces("application/json")]
 [Tags("Authentication")]
+[EnableRateLimiting("auth")]
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
@@ -46,11 +48,20 @@ public class AuthController(
 
         var result = await userManager.CreateAsync(user, request.Password);
         if (!result.Succeeded)
+        {
+            if (result.Errors.Any(e => e.Code == "DuplicateUserName"))
+                return Conflict(new ProblemDetails
+                {
+                    Title = "Email Already Exists",
+                    Detail = "This email address is already registered."
+                });
+
             return BadRequest(new ProblemDetails
             {
                 Title = "Registration Failed",
                 Detail = string.Join(", ", result.Errors.Select(e => e.Description))
             });
+        }
 
         // Assign default role
         await userManager.AddToRoleAsync(user, "User");
@@ -59,13 +70,7 @@ public class AuthController(
         var profile = UserProfile.Create(user.Id, request.DisplayName);
         await profileRepository.AddAsync(profile, ct);
 
-        // Generate email confirmation token
-        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-
         logger.LogInformation("User registered successfully UserId={UserId}, Email={Email}", user.Id, user.Email);
-
-        // TODO: Send confirmation email via IEmailService
-        logger.LogWarning("Email confirmation token (not sent - implement IEmailService): {Token}", token);
 
         return CreatedAtAction(
             nameof(GetCurrentUser),

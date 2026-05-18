@@ -1,4 +1,5 @@
-﻿using AISportCoach.Application.Interfaces;
+﻿using System.Globalization;
+using AISportCoach.Application.Interfaces;
 using AISportCoach.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -7,11 +8,14 @@ namespace AISportCoach.Infrastructure.Persistence.Repositories;
 
 public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingRepository
 {
+    private static string ToVectorLiteral(float[] values) =>
+        $"[{string.Join(",", values.Select(f => f.ToString(CultureInfo.InvariantCulture)))}]";
+
     public async Task AddAsync(ReportEmbedding embedding, CancellationToken ct)
     {
         // Use raw SQL because the Embedding column is vector(768), which requires an explicit
         // ::vector cast. EF Core's type system is bypassed for this column.
-        var vectorLiteral = $"[{string.Join(",", embedding.Embedding)}]";
+        var vectorLiteral = ToVectorLiteral(embedding.Embedding);
         await context.Database.ExecuteSqlRawAsync(
             """
             INSERT INTO "ReportEmbeddings" ("Id", "CoachingReportId", "UserId", "Embedding", "CreatedAt")
@@ -30,7 +34,7 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
     public async Task<List<CoachingReport>> SearchSimilarAsync(
         float[] queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct)
     {
-        var vectorLiteral = $"[{string.Join(",", queryEmbedding)}]";
+        var vectorLiteral = ToVectorLiteral(queryEmbedding);
 
         var sql = $"""
             SELECT cr.* FROM "CoachingReports" cr

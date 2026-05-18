@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text;
+using System.Threading.RateLimiting;
 using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Enums;
 using AISportCoach.Infrastructure.Persistence;
@@ -81,6 +83,52 @@ public static class SecurityExtensions
                 SubscriptionTier.Premium.ToString(),
                 SubscriptionTier.Admin.ToString()))
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+
+        return services;
+    }
+
+    public static IServiceCollection AddCorsPolicy(
+        this IServiceCollection services, IConfiguration configuration)
+    {
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+        services.AddCors(options =>
+            options.AddDefaultPolicy(policy =>
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials()));
+
+        return services;
+    }
+
+    public static IServiceCollection AddAuthRateLimiter(
+        this IServiceCollection services, IConfiguration configuration)
+    {
+        var permitLimit = configuration.GetValue<int>("RateLimit:Auth:PermitLimit", 30);
+        var windowMinutes = configuration.GetValue<int>("RateLimit:Auth:WindowMinutes", 1);
+
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("auth", context =>
+            {
+                var ip = context.Connection.RemoteIpAddress;
+                // Loopback connections are dev/test only — no rate limit needed
+                if (ip != null && IPAddress.IsLoopback(ip))
+                    return RateLimitPartition.GetNoLimiter("loopback");
+
+                var clientId = ip?.ToString() ?? "unknown";
+                return RateLimitPartition.GetSlidingWindowLimiter(clientId, _ =>
+                    new SlidingWindowRateLimiterOptions
+                    {
+                        Window = TimeSpan.FromMinutes(windowMinutes),
+                        SegmentsPerWindow = 6,
+                        PermitLimit = permitLimit,
+                        QueueLimit = 0
+                    });
+            });
+        });
 
         return services;
     }

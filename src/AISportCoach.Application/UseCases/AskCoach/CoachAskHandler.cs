@@ -39,22 +39,35 @@ public class CoachAskHandler(
         var rawJson = await coachQAPlugin.AnswerQuestionAsync(kernel, request.Question, historyContext);
         rawJson = StripToJson(rawJson, '{', '}');
 
-        using var doc = JsonDocument.Parse(rawJson);
-        var root = doc.RootElement;
-
-        var answer = root.TryGetProperty("answer", out var answerEl) ? answerEl.GetString() ?? "" : "";
-        var advice = root.TryGetProperty("advice", out var adviceEl) ? adviceEl.GetString() ?? "" : "";
-        var drills = new List<string>();
-        
-        if (root.TryGetProperty("drills", out var drillsEl))
+        JsonDocument doc;
+        try
         {
-            foreach (var drill in drillsEl.EnumerateArray())
-            {
-                drills.Add(drill.GetString() ?? "");
-            }
+            doc = JsonDocument.Parse(rawJson);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "[CoachAsk] Failed to parse plugin response. RawJson={Raw}", rawJson[..Math.Min(200, rawJson.Length)]);
+            return new CoachAnswerResult("I was unable to process your question at this time. Please try again.", "", []);
         }
 
-        return new CoachAnswerResult(answer, advice, drills);
+        using (doc)
+        {
+            var root = doc.RootElement;
+
+            var answer = root.TryGetProperty("answer", out var answerEl) ? answerEl.GetString() ?? "" : "";
+            var advice = root.TryGetProperty("advice", out var adviceEl) ? adviceEl.GetString() ?? "" : "";
+            var drills = new List<string>();
+
+            if (root.TryGetProperty("drills", out var drillsEl))
+            {
+                foreach (var drill in drillsEl.EnumerateArray())
+                {
+                    drills.Add(drill.GetString() ?? "");
+                }
+            }
+
+            return new CoachAnswerResult(answer, advice, drills);
+        }
     }
 
     private static string FormatHistoryContext(IEnumerable<CoachingReport> reports)

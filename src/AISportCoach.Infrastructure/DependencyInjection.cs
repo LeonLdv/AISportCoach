@@ -29,6 +29,7 @@ public static class DependencyInjection
         // Auth services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IWebAuthnService, WebAuthnService>();
 
         // Repositories
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();

@@ -12,7 +12,6 @@ public class GetReportsSummaryHandler(
 {
     public async Task<PagedResult<CoachingReportSummary>> Handle(GetReportsSummaryQuery request, CancellationToken cancellationToken)
     {
-        var pageSize = Math.Min(request.PageSize, 50);
-        return await reportRepository.GetPagedSummariesByUserAsync(currentUserService.UserId, request.Page, pageSize, cancellationToken);
+        return await reportRepository.GetPagedSummariesByUserAsync(currentUserService.UserId, request.Page, request.PageSize, cancellationToken);
     }
 }
