@@ -11,6 +11,7 @@ namespace AISportCoach.Application.UseCases.AnalyzeNow;
 public class AnalyzeNowHandler(
     IVideoRepository videoRepository,
     TennisCoachOrchestrator orchestrator,
+    ICurrentUserService currentUserService,
     ILogger<AnalyzeNowHandler> logger) : IRequestHandler<AnalyzeNowCommand, CoachingReport>
 {
     public async Task<CoachingReport> Handle(AnalyzeNowCommand request, CancellationToken cancellationToken)
@@ -18,7 +19,7 @@ public class AnalyzeNowHandler(
         logger.LogInformation("Starting video analysis for VideoId={VideoId}, Scopes={Scopes}",
             request.VideoId, request.Scopes?.Count > 0 ? string.Join(", ", request.Scopes) : "All");
 
-        var video = await videoRepository.GetByIdAsync(request.VideoId, cancellationToken)
+        var video = await videoRepository.GetByIdAndUserAsync(request.VideoId, currentUserService.UserId, cancellationToken)
             ?? throw new VideoNotFoundException(request.VideoId);
 
         logger.LogDebug("Video found: FileName={FileName}, Status={Status}, GeminiFileUri={HasUri}",
