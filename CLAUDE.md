@@ -131,6 +131,5 @@ Never commit secrets. Use User Secrets (dev) or environment variables (prod).
 @.claude/rules/architecture.md
 @.claude/rules/api-conventions.md
 @.claude/rules/database.md
-@.claude/rules/ai-pipeline.md
 @.claude/rules/testing.md
 "" 
