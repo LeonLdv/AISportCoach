@@ -93,7 +93,7 @@ Clean Architecture with CQRS:
 - **Infrastructure** is a plug-in detail — never referenced by Application or Domain
 - **CQRS via MediatR** — decouples handlers from HTTP, one handler per use case
 - **Repository pattern** — Application never touches EF Core directly
-- **SK Orchestrator** — single entry point for all AI pipeline execution; plugins are called explicitly, not auto-discovered
+- **SK Orchestrator** — single entry point for all AI pipeline execution
 
 ## HOW — Commands & Workflow
 
