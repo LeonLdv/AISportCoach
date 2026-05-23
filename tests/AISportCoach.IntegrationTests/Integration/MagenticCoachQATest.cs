@@ -178,9 +178,8 @@ public class MagenticCoachQATest
         Assert.NotNull(rawJson);
         Assert.NotEmpty(rawJson);
 
-        // Strip markdown fences the LLM may add despite instructions
-        var jsonStart = rawJson.IndexOf('{');
-        var jsonEnd = rawJson.LastIndexOf('}');
+        var jsonStart = rawJson.IndexOf('[');
+        var jsonEnd = rawJson.LastIndexOf(']');
         var cleanJson = jsonStart >= 0 && jsonEnd > jsonStart
             ? rawJson[jsonStart..(jsonEnd + 1)]
             : rawJson;
@@ -188,17 +187,24 @@ public class MagenticCoachQATest
         using var doc = JsonDocument.Parse(cleanJson, new JsonDocumentOptions { AllowTrailingCommas = true });
         var root = doc.RootElement;
 
-        Assert.True(root.TryGetProperty("answer", out var answerEl),   "missing 'answer'");
-        Assert.NotEmpty(answerEl.GetString() ?? "");
+        Assert.Equal(JsonValueKind.Array, root.ValueKind);
+        Assert.Equal(expectedCount, root.GetArrayLength());
 
-        Assert.True(root.TryGetProperty("advice", out var adviceEl),   "missing 'advice'");
-        Assert.NotEmpty(adviceEl.GetString() ?? "");
+        foreach (var item in root.EnumerateArray())
+        {
+            Assert.True(item.TryGetProperty("answer", out var answerEl),   "missing 'answer'");
+            Assert.NotEmpty(answerEl.GetString() ?? "");
 
-        Assert.True(root.TryGetProperty("drills", out var drillsEl),   "missing 'drills'");
-        Assert.Equal(JsonValueKind.Array, drillsEl.ValueKind);
+            Assert.True(item.TryGetProperty("advice", out var adviceEl),   "missing 'advice'");
+            Assert.NotEmpty(adviceEl.GetString() ?? "");
 
-        Assert.True(root.TryGetProperty("agentName", out var agentEl), "missing 'agentName'");
-        Assert.NotEmpty(agentEl.GetString() ?? "");
+            Assert.True(item.TryGetProperty("drills", out var drillsEl),   "missing 'drills'");
+            Assert.Equal(JsonValueKind.Array, drillsEl.ValueKind);
+            Assert.True(drillsEl.GetArrayLength() > 0, "drills must not be empty");
+
+            Assert.True(item.TryGetProperty("agentName", out var agentEl), "missing 'agentName'");
+            Assert.NotEmpty(agentEl.GetString() ?? "");
+        }
     }
 }
 
