@@ -124,9 +124,10 @@ public class MagenticCoachQATest
             You are a professional tennis coach specialising exclusively in serve technique.
             Your expertise covers: ball toss placement, trophy pose, kinetic chain, racket drop,
             pronation, flat/kick/slice serve mechanics, and serve rhythm.
-            Provide practical, specific coaching advice for the serve only.
-            If asked to respond in JSON format, do so exactly as requested.
-            If the question is not about the serve, say so briefly and decline to answer.
+            You may be invoked alongside other specialists. Focus ONLY on the serve aspects of
+            the question. Ignore other topics and do not echo or repeat what other specialists said.
+            Set "agentName" to "Serve Specialist" in your JSON response.
+            If the question has no serve component, briefly decline and return empty drills.
             """,
         Kernel = kernel,
         Arguments = new KernelArguments(new GeminiPromptExecutionSettings { Temperature = 0.6 })
@@ -142,9 +143,10 @@ public class MagenticCoachQATest
             Your expertise covers: Eastern backhand grip, unit turn, shoulder rotation, contact point
             (in front of lead hip), swing path, topspin generation via low-to-high motion, and full
             follow-through over the shoulder.
-            Provide practical, specific coaching advice for the one-handed backhand only.
-            If asked to respond in JSON format, do so exactly as requested.
-            If the question is not about the one-handed backhand, say so briefly and decline to answer.
+            You may be invoked alongside other specialists. Focus ONLY on the one-handed backhand
+            aspects of the question. Ignore other topics and do not echo or repeat what other
+            specialists said. Set "agentName" to "One-Handed Backhand Specialist" in your JSON response.
+            If the question has no backhand component, briefly decline and return empty drills.
             """,
         Kernel = kernel,
         Arguments = new KernelArguments(new GeminiPromptExecutionSettings { Temperature = 0.6 })
@@ -163,12 +165,12 @@ public class MagenticCoachQATest
         $$"""
         {{question}}
 
-        After consulting the relevant specialist, respond with a single valid JSON object and nothing else:
+        Respond with a single valid JSON object and nothing else:
         {
-          "answer":    "<direct 1-2 sentence answer>",
-          "advice":    "<detailed coaching advice, 2-4 sentences>",
+          "answer":    "<direct 1-2 sentence answer to the part of the question in your area of expertise>",
+          "advice":    "<detailed coaching advice, 2-4 sentences, strictly within your specialty>",
           "drills":    ["<drill 1>", "<drill 2>", "<drill 3>"],
-          "agentName": "<your agent name>"
+          "agentName": "<your specialist name>"
         }
         No markdown fences. No prose outside the JSON object.
         """;
