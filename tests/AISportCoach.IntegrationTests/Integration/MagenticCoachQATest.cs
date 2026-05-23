@@ -8,12 +8,20 @@ using Microsoft.SemanticKernel.Agents.Orchestration.GroupChat;
 using Microsoft.SemanticKernel.Agents.Runtime.InProcess;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.Google;
+using Xunit.Abstractions;
 
 namespace AISportCoach.IntegrationTests.Integration;
 
 public class MagenticCoachQATest
 {
-    private const string Model = "gemini-2.5-flash";
+    private readonly ITestOutputHelper _testOutputHelper;
+
+    public MagenticCoachQATest(ITestOutputHelper testOutputHelper)
+    {
+        _testOutputHelper = testOutputHelper;
+    }
+
+    private const string Model = "gemini-2.5-pro";
 
     [Fact]
     public async Task AskAboutServe_ReturnsStructuredJson()
@@ -41,7 +49,7 @@ public class MagenticCoachQATest
     [Fact]
     public async Task AskAboutOneHandBackhand_ReturnsStructuredJson()
     {
-        var question = "My one-hand backhand keeps going into the net. What am I doing wrong and how do I fix it?";
+        var question = "My one-hand backhand keeps going into the net and my Serve unstable. What am I doing wrong and how do I fix it?";
         var augmented = AugmentWithJsonInstruction(question);
 
         var kernel = BuildKernel(ReadApiKey());
@@ -58,6 +66,7 @@ public class MagenticCoachQATest
         await runtime.RunUntilIdleAsync();
         await runtime.StopAsync();
 
+        _testOutputHelper.WriteLine(rawJson);
         AssertValidCoachResponse(rawJson);
     }
 
@@ -189,6 +198,35 @@ internal sealed class TennisQAManager : RoundRobinGroupChatManager
         _chatService = chatService;
         _agentNames = agents.Select(a => a.Name!).ToList();
         MaximumInvocationCount = 1;
+    }
+
+    public static async Task<IReadOnlyList<string>> ClassifyAsync(
+        IChatCompletionService chatService,
+        string originalQuestion,
+        IReadOnlyList<string> allAgentNames,
+        CancellationToken cancellationToken = default)
+    {
+        var agentList = string.Join(", ", allAgentNames);
+        var prompt = $"""
+            Route this tennis coaching question to the correct specialist(s).
+            Available specialists: {agentList}
+            Question: {originalQuestion}
+            Reply with ONLY the specialist name(s) that should answer, comma-separated if multiple.
+            Example single: ServeAgent
+            Example multiple: ServeAgent, OneHandBackhandAgent
+            """;
+
+        var response = await chatService.GetChatMessageContentAsync(prompt, cancellationToken: cancellationToken);
+        var content = response.Content?.Trim() ?? string.Empty;
+
+        var selected = content
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(n => allAgentNames.Any(a => string.Equals(a, n, StringComparison.OrdinalIgnoreCase)))
+            .Select(n => allAgentNames.First(a => string.Equals(a, n, StringComparison.OrdinalIgnoreCase)))
+            .Distinct()
+            .ToList();
+
+        return selected.Count > 0 ? selected : allAgentNames;
     }
 
     public override async ValueTask<GroupChatManagerResult<string>> SelectNextAgent(
