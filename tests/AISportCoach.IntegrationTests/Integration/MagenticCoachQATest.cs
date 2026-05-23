@@ -250,8 +250,9 @@ internal sealed class TennisQAManager : RoundRobinGroupChatManager
         GroupChatTeam team,
         CancellationToken cancellationToken = default)
     {
-        var nextAgent = _pendingAgents.TryDequeue(out var name) ? name : _neededAgentNames[0];
-        return ValueTask.FromResult(new GroupChatManagerResult<string>(nextAgent) { Reason = $"Routing to {nextAgent}" });
+        if (!_pendingAgents.TryDequeue(out var name))
+            throw new InvalidOperationException("SelectNextAgent called more times than MaximumInvocationCount.");
+        return ValueTask.FromResult(new GroupChatManagerResult<string>(name) { Reason = $"Routing to {name}" });
     }
 
     public override ValueTask<GroupChatManagerResult<string>> FilterResults(
