@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddScoped<ReportGenerationPlugin>();
         services.AddScoped<CoachQAPlugin>();
         services.AddScoped<TennisCoachOrchestrator>();
+        services.AddScoped<TennisQAOrchestrator>();
 
         services.AddGoogleAIEmbeddingGenerator(
             modelId: "gemini-embedding-001",
