@@ -32,7 +32,11 @@ public class MagenticCoachQATest
         var kernel = BuildKernel(ReadApiKey());
         var serveAgent = BuildServeAgent(kernel);
         var backhandAgent = BuildOneHandBackhandAgent(kernel);
-        var orchestration = BuildOrchestration(kernel, serveAgent, backhandAgent);
+
+        var chatService = kernel.GetRequiredService<IChatCompletionService>();
+        IReadOnlyList<string> allAgentNames = [serveAgent.Name!, backhandAgent.Name!];
+        var neededAgents = await TennisQAManager.ClassifyAsync(chatService, question, allAgentNames);
+        var orchestration = BuildOrchestration(neededAgents, serveAgent, backhandAgent);
 
         var runtime = new InProcessRuntime();
         await runtime.StartAsync();
@@ -43,7 +47,7 @@ public class MagenticCoachQATest
         await runtime.RunUntilIdleAsync();
         await runtime.StopAsync();
 
-        AssertValidCoachResponse(rawJson);
+        AssertValidCoachResponse(rawJson, expectedCount: 1);
     }
 
     [Fact]
@@ -55,7 +59,11 @@ public class MagenticCoachQATest
         var kernel = BuildKernel(ReadApiKey());
         var serveAgent = BuildServeAgent(kernel);
         var backhandAgent = BuildOneHandBackhandAgent(kernel);
-        var orchestration = BuildOrchestration(kernel, serveAgent, backhandAgent);
+
+        var chatService = kernel.GetRequiredService<IChatCompletionService>();
+        IReadOnlyList<string> allAgentNames = [serveAgent.Name!, backhandAgent.Name!];
+        var neededAgents = await TennisQAManager.ClassifyAsync(chatService, question, allAgentNames);
+        var orchestration = BuildOrchestration(neededAgents, serveAgent, backhandAgent);
 
         var runtime = new InProcessRuntime();
         await runtime.StartAsync();
@@ -67,7 +75,16 @@ public class MagenticCoachQATest
         await runtime.StopAsync();
 
         _testOutputHelper.WriteLine(rawJson);
-        AssertValidCoachResponse(rawJson);
+        AssertValidCoachResponse(rawJson, expectedCount: 2);
+
+        // Both specialists must respond with distinct agent names
+        var arrayStart = rawJson!.IndexOf('[');
+        using var doc = JsonDocument.Parse(rawJson[arrayStart..], new JsonDocumentOptions { AllowTrailingCommas = true });
+        var distinctAgentNames = doc.RootElement.EnumerateArray()
+            .Select(el => el.GetProperty("agentName").GetString())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        Assert.Equal(2, distinctAgentNames.Count);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -134,12 +151,11 @@ public class MagenticCoachQATest
     };
 
     private static GroupChatOrchestration BuildOrchestration(
-        Kernel kernel,
+        IReadOnlyList<string> neededAgentNames,
         ChatCompletionAgent serveAgent,
         ChatCompletionAgent backhandAgent)
     {
-        var chatService = kernel.GetRequiredService<IChatCompletionService>();
-        var manager = new TennisQAManager(chatService, [serveAgent, backhandAgent]);
+        var manager = new TennisQAManager(neededAgentNames);
         return new GroupChatOrchestration(manager, serveAgent, backhandAgent);
     }
 
@@ -157,7 +173,7 @@ public class MagenticCoachQATest
         No markdown fences. No prose outside the JSON object.
         """;
 
-    private static void AssertValidCoachResponse(string? rawJson)
+    private static void AssertValidCoachResponse(string? rawJson, int expectedCount = 1)
     {
         Assert.NotNull(rawJson);
         Assert.NotEmpty(rawJson);
@@ -190,14 +206,14 @@ public class MagenticCoachQATest
 
 internal sealed class TennisQAManager : RoundRobinGroupChatManager
 {
-    private readonly IChatCompletionService _chatService;
-    private readonly IReadOnlyList<string> _agentNames;
+    private readonly IReadOnlyList<string> _neededAgentNames;
+    private readonly Queue<string> _pendingAgents;
 
-    public TennisQAManager(IChatCompletionService chatService, IEnumerable<Agent> agents)
+    public TennisQAManager(IReadOnlyList<string> neededAgentNames)
     {
-        _chatService = chatService;
-        _agentNames = agents.Select(a => a.Name!).ToList();
-        MaximumInvocationCount = 1;
+        _neededAgentNames = neededAgentNames;
+        _pendingAgents = new Queue<string>(neededAgentNames);
+        MaximumInvocationCount = neededAgentNames.Count;
     }
 
     public static async Task<IReadOnlyList<string>> ClassifyAsync(
@@ -229,36 +245,27 @@ internal sealed class TennisQAManager : RoundRobinGroupChatManager
         return selected.Count > 0 ? selected : allAgentNames;
     }
 
-    public override async ValueTask<GroupChatManagerResult<string>> SelectNextAgent(
+    public override ValueTask<GroupChatManagerResult<string>> SelectNextAgent(
         ChatHistory history,
         GroupChatTeam team,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var question = history.FirstOrDefault(m => m.Role == AuthorRole.User)?.Content ?? string.Empty;
-        var agentList = string.Join(", ", _agentNames);
-
-        var routingPrompt = $"""
-            Route this tennis coaching question to the correct specialist.
-            Available specialists: {agentList}
-            Question: {question}
-            Reply with ONLY the specialist name. Nothing else.
-            """;
-
-        var response = await _chatService.GetChatMessageContentAsync(routingPrompt, cancellationToken: cancellationToken);
-        var selectedName = response.Content?.Trim() ?? string.Empty;
-
-        var validName = _agentNames.FirstOrDefault(n =>
-            string.Equals(n, selectedName, StringComparison.OrdinalIgnoreCase)) ?? _agentNames[0];
-
-        return new GroupChatManagerResult<string>(validName) { Reason = $"Routing to {validName}" };
+        var nextAgent = _pendingAgents.TryDequeue(out var name) ? name : _neededAgentNames[0];
+        return ValueTask.FromResult(new GroupChatManagerResult<string>(nextAgent) { Reason = $"Routing to {nextAgent}" });
     }
 
     public override ValueTask<GroupChatManagerResult<string>> FilterResults(
         ChatHistory history,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        var lastResponse = history.LastOrDefault(m => m.Role == AuthorRole.Assistant)?.Content ?? string.Empty;
-        return ValueTask.FromResult(new GroupChatManagerResult<string>(lastResponse));
+        var responses = history
+            .Where(m => m.Role == AuthorRole.Assistant &&
+                        _neededAgentNames.Any(n => string.Equals(n, m.AuthorName, StringComparison.OrdinalIgnoreCase)))
+            .Select(m => m.Content ?? "{}")
+            .ToList();
+
+        var merged = $"[{string.Join(",", responses)}]";
+        return ValueTask.FromResult(new GroupChatManagerResult<string>(merged));
     }
 }
 
