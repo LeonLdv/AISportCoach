@@ -268,11 +268,18 @@ internal sealed class TennisQAManager : RoundRobinGroupChatManager
         var responses = history
             .Where(m => m.Role == AuthorRole.Assistant &&
                         _neededAgentNames.Any(n => string.Equals(n, m.AuthorName, StringComparison.OrdinalIgnoreCase)))
-            .Select(m => m.Content ?? "{}")
+            .Select(m => ExtractJsonObject(m.Content ?? "{}"))
             .ToList();
 
         var merged = $"[{string.Join(",", responses)}]";
         return ValueTask.FromResult(new GroupChatManagerResult<string>(merged));
+    }
+
+    private static string ExtractJsonObject(string content)
+    {
+        var start = content.IndexOf('{');
+        var end = content.LastIndexOf('}');
+        return start >= 0 && end > start ? content[start..(end + 1)] : content;
     }
 }
 
