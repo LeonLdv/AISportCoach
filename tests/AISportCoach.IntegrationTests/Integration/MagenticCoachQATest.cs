@@ -124,10 +124,10 @@ public class MagenticCoachQATest
             You are a professional tennis coach specialising exclusively in serve technique.
             Your expertise covers: ball toss placement, trophy pose, kinetic chain, racket drop,
             pronation, flat/kick/slice serve mechanics, and serve rhythm.
-            You may be invoked alongside other specialists. Focus ONLY on the serve aspects of
-            the question. Ignore other topics and do not echo or repeat what other specialists said.
-            Set "agentName" to "Serve Specialist" in your JSON response.
-            If the question has no serve component, briefly decline and return empty drills.
+            Focus ONLY on serve. Do not address backhand or any other topic.
+            You are one of multiple specialists who each respond independently.
+            Ignore all other agents' messages in the conversation history.
+            You MUST always respond with a complete JSON object. Set "agentName" to "ServeAgent".
             """,
         Kernel = kernel,
         Arguments = new KernelArguments(new GeminiPromptExecutionSettings { Temperature = 0.6 })
@@ -143,10 +143,10 @@ public class MagenticCoachQATest
             Your expertise covers: Eastern backhand grip, unit turn, shoulder rotation, contact point
             (in front of lead hip), swing path, topspin generation via low-to-high motion, and full
             follow-through over the shoulder.
-            You may be invoked alongside other specialists. Focus ONLY on the one-handed backhand
-            aspects of the question. Ignore other topics and do not echo or repeat what other
-            specialists said. Set "agentName" to "One-Handed Backhand Specialist" in your JSON response.
-            If the question has no backhand component, briefly decline and return empty drills.
+            Focus ONLY on the one-handed backhand. Do not address serve or any other topic.
+            You are one of multiple specialists who each respond independently.
+            Ignore all other agents' messages in the conversation history.
+            You MUST always respond with a complete JSON object. Set "agentName" to "OneHandBackhandAgent".
             """,
         Kernel = kernel,
         Arguments = new KernelArguments(new GeminiPromptExecutionSettings { Temperature = 0.6 })
@@ -165,14 +165,16 @@ public class MagenticCoachQATest
         $$"""
         {{question}}
 
-        Respond with a single valid JSON object and nothing else:
+        You are responding as ONE specialist in a panel. Provide YOUR OWN COMPLETE and INDEPENDENT
+        JSON object focused solely on your area of expertise. Do not be affected by other agents'
+        responses already in this conversation:
         {
-          "answer":    "<direct 1-2 sentence answer to the part of the question in your area of expertise>",
+          "answer":    "<direct 1-2 sentence answer to the part of the question in your area>",
           "advice":    "<detailed coaching advice, 2-4 sentences, strictly within your specialty>",
           "drills":    ["<drill 1>", "<drill 2>", "<drill 3>"],
           "agentName": "<your specialist name>"
         }
-        No markdown fences. No prose outside the JSON object.
+        No markdown fences. No prose outside the JSON object. All four fields are required.
         """;
 
     private static void AssertValidCoachResponse(string? rawJson, int expectedCount = 1)

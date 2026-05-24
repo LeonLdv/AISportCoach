@@ -13,9 +13,9 @@ public class CoachAskHandler(
     ICurrentUserService currentUserService,
     IOptions<RagOptions> ragOptions,
     TennisCoachAdvisorOrchestrator tennisCoachAdvisorOrchestrator,
-    ILogger<CoachAskHandler> logger) : IRequestHandler<CoachAskQuery, string>
+    ILogger<CoachAskHandler> logger) : IRequestHandler<CoachAskQuery, CoachAnswerResult>
 {
-    public async Task<string> Handle(CoachAskQuery request, CancellationToken cancellationToken)
+    public async Task<CoachAnswerResult> Handle(CoachAskQuery request, CancellationToken cancellationToken)
     {
         logger.LogInformation("[CoachAsk] Received question. QuestionLength={Length}", request.Question.Length);
 

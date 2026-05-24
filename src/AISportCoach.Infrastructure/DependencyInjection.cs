@@ -1,5 +1,6 @@
-﻿#pragma warning disable SKEXP0001, SKEXP0070
+﻿#pragma warning disable SKEXP0001, SKEXP0070, SKEXP0110
 using AISportCoach.Application.Agents;
+using AISportCoach.Application.Agents.Specialists;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
@@ -88,7 +89,14 @@ public static class DependencyInjection
         services.AddScoped<ReportGenerationPlugin>();
         services.AddScoped<CoachQAPlugin>();
         services.AddScoped<TennisCoachOrchestrator>();
-        services.AddScoped<TennisQAOrchestrator>();
+        services.AddScoped<ISpecialistAgentFactory, ServeSpecialistAgent>();
+        services.AddScoped<ISpecialistAgentFactory, ForehandSpecialistAgent>();
+        services.AddScoped<ISpecialistAgentFactory, BackhandSpecialistAgent>();
+        services.AddScoped<ISpecialistAgentFactory, VolleyNetPlayAgent>();
+        services.AddScoped<ISpecialistAgentFactory, FootworkMovementAgent>();
+        services.AddScoped<ISpecialistAgentFactory, MentalTacticsAgent>();
+        services.AddScoped<ISpecialistAgentFactory, GeneralCoachAgent>();
+        services.AddScoped<TennisCoachAdvisorOrchestrator>();
 
         services.AddGoogleAIEmbeddingGenerator(
             modelId: "gemini-embedding-001",
@@ -113,4 +121,4 @@ public static class DependencyInjection
         });
     }
 }
-#pragma warning restore SKEXP0001, SKEXP0070
+#pragma warning restore SKEXP0001, SKEXP0070, SKEXP0110

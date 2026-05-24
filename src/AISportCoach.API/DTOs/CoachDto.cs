@@ -4,4 +4,10 @@ namespace AISportCoach.API.DTOs;
 
 public record CoachAskRequestDto([Required] string Question);
 
-public record CoachAnswerDto(string Answer, string Advice, List<string> Drills);
+public record AgentAnswerDto(
+    string AgentName,
+    string Answer,
+    string Advice,
+    IReadOnlyList<string> Drills);
+
+public record CoachAnswerResponseDto(IReadOnlyList<AgentAnswerDto> Answers);
