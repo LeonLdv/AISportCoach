@@ -5,9 +5,6 @@ using AISportCoach.Application.UseCases.AskCoach;
 using AISportCoach.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Agents;
-using Microsoft.SemanticKernel.Agents.Orchestration.GroupChat;
-using Microsoft.SemanticKernel.Agents.Runtime.InProcess;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Text.Json;
 
@@ -25,95 +22,87 @@ public class TennisCoachAdvisorOrchestrator(
     {
         logger.LogInformation("[TennisCoachAdvisor] Processing question. Length={Length}", question.Length);
 
-        var agents = agentFactories
-            .Select(factory => factory.Create(RagContextFormatter.Format(reports, factory.StrokeFilter)))
-            .ToList();
-
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
-        var agentNames = agents.Select(agent => agent.Name!).ToList();
+        var allAgentNames = agentFactories.Select(f => f.AgentName).ToList();
 
         var selectedAgentNames = await CoachGroupChatManager.ClassifyAsync(
-            chatService, question, agentNames, cancellationToken);
+            chatService, question, allAgentNames, cancellationToken);
 
         logger.LogInformation("[TennisCoachAdvisor] Classified to agents: {Agents}",
             string.Join(", ", selectedAgentNames));
 
-        var manager = new CoachGroupChatManager(selectedAgentNames, logger);
-        var orchestration = new GroupChatOrchestration(manager, [.. agents]);
+        var answers = new List<CoachAgentAnswer>();
 
-        var runtime = new InProcessRuntime();
-        await runtime.StartAsync();
-
-        try
+        foreach (var factory in agentFactories.Where(f =>
+            selectedAgentNames.Any(name => string.Equals(name, f.AgentName, StringComparison.OrdinalIgnoreCase))))
         {
-            var invocationResult = await orchestration.InvokeAsync(
-                AugmentWithJsonInstruction(question), runtime);
+            logger.LogInformation("[TennisCoachAdvisor] Invoking {Agent}.", factory.AgentName);
 
-            var rawJson = await invocationResult.GetValueAsync(TimeSpan.FromMinutes(2));
+            var agent = factory.Create(RagContextFormatter.Format(reports, factory.StrokeFilter));
 
-            await runtime.RunUntilIdleAsync();
+            var chatHistory = new ChatHistory();
+            chatHistory.AddSystemMessage(agent.Instructions ?? "");
+            chatHistory.AddUserMessage(AugmentWithJsonInstruction(question));
 
-            logger.LogDebug("[TennisCoachAdvisor] Raw response. Length={Length}", rawJson?.Length ?? 0);
+            var response = await chatService.GetChatMessageContentAsync(
+                chatHistory,
+                new PromptExecutionSettings { ExtensionData = new Dictionary<string, object> { ["temperature"] = 0.6 } },
+                kernel,
+                cancellationToken);
 
-            return ParseResult(rawJson);
+            logger.LogInformation("[TennisCoachAdvisor] {Agent} responded. Length={Length}",
+                factory.AgentName, response.Content?.Length ?? 0);
+
+            var answer = ParseSingleAnswer(factory.AgentName, response.Content ?? "");
+            if (answer is not null) answers.Add(answer);
         }
-        finally
-        {
-            await runtime.StopAsync();
-        }
+
+        return new CoachAnswerResult(answers);
     }
 
     private static string AugmentWithJsonInstruction(string question) =>
         $$"""
         {{question}}
 
-        You are responding as ONE specialist in a panel. Provide YOUR OWN COMPLETE and INDEPENDENT
-        JSON object focused solely on your area of expertise. Do not be affected by other agents'
-        responses already in this conversation:
-        {
-          "answer":    "<direct 1-2 sentence answer to the part of the question in your area>",
-          "advice":    "<detailed coaching advice, 2-4 sentences, strictly within your specialty>",
-          "drills":    ["<drill 1>", "<drill 2>", "<drill 3>"],
-          "agentName": "<your specialist name>"
-        }
-        No markdown fences. No prose outside the JSON object. All four fields are required.
+        Respond as ONE specialist. Provide your own complete, independent JSON object
+        focused solely on your area of expertise. Ignore other agents' responses.
+        Required format — all four fields mandatory:
+        {"answer":"<1-2 sentence direct answer>","advice":"<2-4 sentence coaching advice>","drills":["...","...","..."],"agentName":"<your name>"}
+        No markdown fences. No prose outside the JSON.
         """;
 
-    private CoachAnswerResult ParseResult(string? rawJson)
+    private CoachAgentAnswer? ParseSingleAnswer(string agentName, string content)
     {
-        if (string.IsNullOrEmpty(rawJson))
-            return new CoachAnswerResult([]);
-
         try
         {
-            var openBracketIndex = rawJson.IndexOf('[');
-            var closeBracketIndex = rawJson.LastIndexOf(']');
+            var openBraceIndex = content.IndexOf('{');
+            var closeBraceIndex = content.LastIndexOf('}');
 
-            if (openBracketIndex < 0 || closeBracketIndex <= openBracketIndex)
-                return new CoachAnswerResult([]);
+            if (openBraceIndex < 0 || closeBraceIndex <= openBraceIndex)
+            {
+                logger.LogWarning("[TennisCoachAdvisor] {Agent} returned no JSON object.", agentName);
+                return null;
+            }
 
-            var cleanJson = rawJson[openBracketIndex..(closeBracketIndex + 1)];
+            var jsonObject = content[openBraceIndex..(closeBraceIndex + 1)];
 
-            using var jsonDocument = JsonDocument.Parse(cleanJson,
+            using var jsonDocument = JsonDocument.Parse(jsonObject,
                 new JsonDocumentOptions { AllowTrailingCommas = true });
 
-            var answers = jsonDocument.RootElement.EnumerateArray()
-                .Select(element => new CoachAgentAnswer(
-                    AgentName: element.GetProperty("agentName").GetString() ?? "",
-                    Answer:    element.GetProperty("answer").GetString() ?? "",
-                    Advice:    element.GetProperty("advice").GetString() ?? "",
-                    Drills:    element.GetProperty("drills").EnumerateArray()
-                                   .Select(drill => drill.GetString() ?? "")
-                                   .ToList()))
-                .ToList();
+            var element = jsonDocument.RootElement;
 
-            return new CoachAnswerResult(answers);
+            return new CoachAgentAnswer(
+                AgentName: element.TryGetProperty("agentName", out var nameEl) ? nameEl.GetString() ?? agentName : agentName,
+                Answer:    element.TryGetProperty("answer",    out var answerEl) ? answerEl.GetString() ?? "" : "",
+                Advice:    element.TryGetProperty("advice",    out var adviceEl) ? adviceEl.GetString() ?? "" : "",
+                Drills:    element.TryGetProperty("drills",    out var drillsEl)
+                    ? drillsEl.EnumerateArray().Select(d => d.GetString() ?? "").ToList()
+                    : []);
         }
         catch (JsonException jsonException)
         {
-            logger.LogWarning(jsonException,
-                "[TennisCoachAdvisor] Failed to parse agent response JSON.");
-            return new CoachAnswerResult([]);
+            logger.LogWarning(jsonException, "[TennisCoachAdvisor] {Agent} returned invalid JSON.", agentName);
+            return null;
         }
     }
 }
