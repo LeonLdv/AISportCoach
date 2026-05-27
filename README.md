@@ -31,9 +31,21 @@ AI-powered tennis coaching platform. Upload videos of your tennis sessions and r
 ┌────────────────▼────────────────────────┐
 │  Application Layer                      │
 │  • CQRS handlers (MediatR)              │
-│  • TennisCoachOrchestrator              │
-│  • SK Plugins (VideoAnalysis,           │
-│    ReportGeneration, NtrpRating)        │
+│                                         │
+│  TennisCoachOrchestrator                │
+│    SK Kernel → VideoAnalysisPlugin      │
+│             → ReportGenerationPlugin    │
+│                                         │
+│  TennisCoachAdvisorOrchestrator         │
+│    SK GroupChat (RoundRobin) →          │
+│      ServeSpecialist                    │
+│      ForehandSpecialist                 │
+│      BackhandSpecialist                 │
+│      VolleyNetPlay                      │
+│      FootworkMovement                   │
+│      MentalTactics                      │
+│      GeneralCoach                       │
+│                                         │
 │  • Interfaces (IVideoRepository, etc.)  │
 └────────────────┬────────────────────────┘
                  │
@@ -53,9 +65,14 @@ AI-powered tennis coaching platform. Upload videos of your tennis sessions and r
 - Application defines interfaces; Infrastructure implements them
 - One MediatR handler per use case
 - Repository pattern — no direct EF Core access in handlers
-- Orchestrator explicitly calls SK plugins (no auto-discovery)
+- `TennisCoachOrchestrator` calls SK plugins explicitly (no auto-discovery)
+- `TennisCoachAdvisorOrchestrator` uses SK GroupChat — LLM routes each question to relevant specialist agents
 
-## AI Pipeline
+## AI Pipelines
+
+### Video Analysis — `TennisCoachOrchestrator`
+
+SK `Kernel` with explicit plugin calls (no auto-invocation):
 
 ```
 Upload video
@@ -65,15 +82,14 @@ Upload video
     │
     ▼
 2. VideoAnalysisPlugin
-   └─▶ Extracts technique observations via Gemini multimodal vision
+   └─▶ Single Gemini multimodal call → extracts stroke observations + NTRP data
     │
     ▼
 3. Retrieve 5 most similar past sessions (pgvector cosine similarity)
     │
     ▼
-4. ReportGenerationPlugin + NtrpRatingPlugin (parallel)
-   ├─▶ Generates coaching report with trends from history
-   └─▶ Assigns evidence-based NTRP rating with justification
+4. ReportGenerationPlugin
+   └─▶ Generates coaching report with trend analysis from session history
     │
     ▼
 5. Generate embedding for new report (Gemini text-embedding-004)
@@ -81,6 +97,41 @@ Upload video
     ▼
 6. Save report + embedding to PostgreSQL (pgvector)
 ```
+
+### Q&A Advisor — `TennisCoachAdvisorOrchestrator`
+
+SK **GroupChat** orchestration with `CoachGroupChatManager` (extends `RoundRobinGroupChatManager`):
+
+```
+Player question
+    │
+    ▼
+1. Generate question embedding → pgvector similarity search
+   └─▶ Retrieves top-K most relevant past coaching reports
+    │
+    ▼
+2. CoachGroupChatManager.ClassifyAsync
+   └─▶ LLM classifier routes question to relevant specialist(s)
+    │
+    ▼
+3. SK GroupChat — RoundRobinGroupChatManager
+   ├─▶ ServeSpecialist    (ball toss, pronation, serve mechanics)
+   ├─▶ ForehandSpecialist (topspin, grip, swing path)
+   ├─▶ BackhandSpecialist (one/two-handed, slice, unit turn)
+   ├─▶ VolleyNetPlay      (volleys, overheads, net approach)
+   ├─▶ FootworkMovement   (split-step, positioning, recovery)
+   ├─▶ MentalTactics      (point construction, strategy)
+   └─▶ GeneralCoach       (fitness, equipment, general questions)
+    │
+    ▼
+4. CoachGroupChatManager.FilterResults
+   └─▶ Extracts and merges JSON from selected agents' responses
+    │
+    ▼
+5. Return per-agent answers: agentName, answer, advice, drills[]
+```
+
+Each specialist receives only the RAG context filtered to its stroke domain (`RagContextFormatter`) so agents stay focused and don't cross-contaminate each other's reasoning.
 
 ## Tech Stack
 
@@ -91,7 +142,8 @@ Upload video
 | **Semantic Search** | pgvector (HNSW index), Gemini text-embedding-004 (768-dim) |
 | **Database** | PostgreSQL 17 + EF Core 10 |
 | **Architecture** | MediatR 12 (CQRS), Clean Architecture, Repository pattern |
-| **Orchestration** | .NET Aspire 13 (AppHost + ServiceDefaults) |
+| **AI Orchestration** | SK GroupChat (`RoundRobinGroupChatManager`), 7 specialist agents |
+| **App Orchestration** | .NET Aspire 13 (AppHost + ServiceDefaults) |
 | **Testing** | xUnit, Moq, integration tests against real Gemini API |
 | **API Docs** | Swashbuckle/Swagger (`/swagger`) |
 
@@ -183,8 +235,13 @@ src/
     Middleware/           # Exception handling, request logging
   AISportCoach.Application/
     UseCases/             # CQRS commands/queries + handlers
-    Agents/               # TennisCoachOrchestrator
-    Plugins/              # SK plugins (VideoAnalysis, ReportGeneration, NtrpRating)
+    Agents/
+      TennisCoachOrchestrator.cs        # Video analysis — SK Kernel + explicit plugin chain
+      TennisCoachAdvisorOrchestrator.cs # Q&A — SK GroupChat, routes to specialists
+      CoachGroupChatManager.cs          # RoundRobinGroupChatManager — classifies & merges
+      Specialists/                      # 7 ChatCompletionAgent factories (one per stroke domain)
+      Helpers/RagContextFormatter.cs    # Filters pgvector results per agent's stroke scope
+    Plugins/              # SK plugins (VideoAnalysis, ReportGeneration, CoachQA)
     Interfaces/           # Repository interfaces
   AISportCoach.Domain/
     Entities/             # VideoUpload, CoachingReport (zero external deps)
