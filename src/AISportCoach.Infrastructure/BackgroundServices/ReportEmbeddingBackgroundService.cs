@@ -17,13 +17,13 @@ public class ReportEmbeddingBackgroundService(
     {
         await foreach (var reportId in channelReader.ReadAllAsync(stoppingToken))
         {
-            using var scope = scopeFactory.CreateScope();
-            var reportRepository = scope.ServiceProvider.GetRequiredService<ICoachingReportRepository>();
-            var embeddingService = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
-            var embeddingRepository = scope.ServiceProvider.GetRequiredService<IReportEmbeddingRepository>();
-
             try
             {
+                using var scope = scopeFactory.CreateScope();
+                var reportRepository = scope.ServiceProvider.GetRequiredService<ICoachingReportRepository>();
+                var embeddingService = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
+                var embeddingRepository = scope.ServiceProvider.GetRequiredService<IReportEmbeddingRepository>();
+
                 var report = await reportRepository.GetWithDetailsAsync(reportId, stoppingToken);
                 if (report is null)
                 {
@@ -45,6 +45,10 @@ public class ReportEmbeddingBackgroundService(
                 await embeddingRepository.AddChunksAsync(userId, pairs, stoppingToken);
                 logger.LogInformation(
                     "[Embedding] Saved {ChunkCount} chunks for report {ReportId}", pairs.Count, reportId);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
