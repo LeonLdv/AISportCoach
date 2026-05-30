@@ -1,4 +1,4 @@
-﻿using AISportCoach.Domain.Entities;
+using AISportCoach.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,6 +11,8 @@ public class ReportEmbeddingConfiguration : IEntityTypeConfiguration<ReportEmbed
         builder.HasKey(e => e.Id);
 
         builder.Property(e => e.UserId).IsRequired();
+        builder.Property(e => e.ChunkType).HasConversion<string>().IsRequired();
+        builder.Property(e => e.ChunkId).IsRequired();
 
         // The Embedding column is vector(768) — managed via raw SQL in the repository
         // because Npgsql EF Core 10 does not expose a UseVector() hook compatible with

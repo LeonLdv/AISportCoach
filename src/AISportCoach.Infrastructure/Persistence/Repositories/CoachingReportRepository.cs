@@ -85,6 +85,15 @@ public class CoachingReportRepository(AppDbContext db) : ICoachingReportReposito
             .ToPagedResultAsync(page, pageSize, ct);
     }
 
+    public Task<CoachingReport?> GetWithDetailsAsync(Guid reportId, CancellationToken ct = default)
+        => db.CoachingReports
+             .AsNoTracking()
+             .Include(r => r.VideoUpload)
+             .Include(r => r.Observations)
+             .Include(r => r.Recommendations)
+             .Include(r => r.NtrpEvidence)
+             .FirstOrDefaultAsync(r => r.Id == reportId, ct);
+
     public async Task AddAsync(CoachingReport report, CancellationToken ct = default)
     {
         db.CoachingReports.Add(report);
