@@ -1,13 +1,12 @@
 using AISportCoach.Application.Interfaces;
-using AISportCoach.Application.Models;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Enums;
 using AISportCoach.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace AISportCoach.Application.Agents;
 
@@ -17,9 +16,8 @@ public class TennisCoachOrchestrator(
     ReportGenerationPlugin reportGenerationPlugin,
     ICoachingReportRepository reportRepository,
     IVideoRepository videoRepository,
-    IReportEmbeddingRepository embeddingRepository,
-    IEmbeddingService embeddingService,
     IVideoFileService videoFileService,
+    ChannelWriter<Guid> embeddingChannel,
     ILogger<TennisCoachOrchestrator> logger)
 {
     public async Task<CoachingReport> ProcessAsync(
@@ -39,17 +37,13 @@ public class TennisCoachOrchestrator(
                 "[Orchestrator] Starting analysis for video: {VideoId}, FileUri: {FileUri}, Scopes: {Scopes}",
                 video.Id, fileUri, string.Join(",", scopes));
 
-            // Gemini processes uploaded videos asynchronously; the upload handler
-            // returns as soon as bytes are stored, so the file may not yet be ACTIVE.
             await videoFileService.WaitForFileActiveAsync(fileUri, cancellationToken);
 
-            // Step 1 — single merged Gemini call for observations + optional NTRP
             logger.LogInformation("[Orchestrator] Step 1/2 — video analysis. VideoId={VideoId}, FileUri={FileUri}", videoId, fileUri);
             var mergedJson = await videoAnalysisPlugin.AnalyzeVideoAsync(kernel, fileUri, scopes);
             var (observationsJson, ntrpJson) = SplitMergedAnalysisJson(mergedJson, scopes.Contains(AnalysisScope.Ntrp));
             logger.LogInformation("[Orchestrator] Step 1/2 complete. ObservationsJsonLength={Length}", observationsJson.Length);
 
-            // Step 2 — report generation
             logger.LogInformation("[Orchestrator] Step 2/2 — report generation. VideoId={VideoId}", videoId);
             var reportJson = await reportGenerationPlugin.GenerateCoachingReportAsync(
                 kernel, observationsJson, null, ntrpJson);
@@ -65,9 +59,8 @@ public class TennisCoachOrchestrator(
 
             await reportRepository.AddAsync(report, cancellationToken);
 
-            var chunks = await BuildAndEmbedChunksAsync(report, cancellationToken);
-            await embeddingRepository.AddChunksAsync(video.UserId, chunks, cancellationToken);
-            logger.LogInformation("[Embedding] Saved {ChunkCount} report embeddings for {ReportId}.", chunks.Count, report.Id);
+            if (!embeddingChannel.TryWrite(report.Id))
+                logger.LogWarning("[Embedding] Channel full — report {ReportId} will not be embedded", report.Id);
 
             video.SetStatus(VideoStatus.Processed);
             logger.LogInformation("[Orchestrator] Analysis for video {VideoId} completed successfully.", videoId);
@@ -112,65 +105,8 @@ public class TennisCoachOrchestrator(
         }
     }
 
-    private async Task<List<(ReportChunk, float[])>> BuildAndEmbedChunksAsync(
-        CoachingReport report, CancellationToken cancellationToken)
-    {
-        var chunks = new List<(ReportChunk, float[])>();
-
-        // Summary chunk
-        var summaryText = $"SUMMARY: {report.ExecutiveSummary}";
-        if (report.NtrpRating.HasValue)
-            summaryText += $"\nNTRP: {report.NtrpRating:0.0} ({report.NtrpRatingMin:0.0}–{report.NtrpRatingMax:0.0}, {report.NtrpConfidence}) — {report.NtrpRatingJustification}";
-        var summaryEmbedding = await embeddingService.GenerateEmbeddingAsync(
-            summaryText, EmbeddingTaskType.Document, cancellationToken);
-        chunks.Add((
-            new ReportChunk(ChunkType.Summary, report.Id, report.Id, summaryText),
-            summaryEmbedding));
-
-        // NTRP Evidence chunks
-        if (report.NtrpEvidence?.Count > 0)
-        {
-            foreach (var evidence in report.NtrpEvidence)
-            {
-                var evidenceText = $"{evidence.NtrpIndicator} level {evidence.SupportedLevel:0.0} ({evidence.Weight}): {evidence.Observation}";
-                var embedding = await embeddingService.GenerateEmbeddingAsync(
-                    evidenceText, EmbeddingTaskType.Document, cancellationToken);
-                chunks.Add((
-                    new ReportChunk(ChunkType.NtrpEvidence, evidence.Id, report.Id, evidenceText),
-                    embedding));
-            }
-        }
-
-        // Observation chunks
-        foreach (var observation in report.Observations)
-        {
-            var obsText = $"{observation.Stroke} [{observation.Severity}] {observation.BodyPart}: {observation.Description}";
-            var embedding = await embeddingService.GenerateEmbeddingAsync(
-                obsText, EmbeddingTaskType.Document, cancellationToken);
-            chunks.Add((
-                new ReportChunk(ChunkType.Observation, observation.Id, report.Id, obsText),
-                embedding));
-        }
-
-        // Recommendation chunks
-        foreach (var recommendation in report.Recommendations)
-        {
-            var recText = $"[{recommendation.Priority}] {recommendation.TargetStroke} — {recommendation.Title}: {recommendation.DetailedDescription}";
-            if (recommendation.DrillSuggestions.Count > 0)
-                recText += $"\nDRILLS: {string.Join("; ", recommendation.DrillSuggestions)}";
-            var embedding = await embeddingService.GenerateEmbeddingAsync(
-                recText, EmbeddingTaskType.Document, cancellationToken);
-            chunks.Add((
-                new ReportChunk(ChunkType.Recommendation, recommendation.Id, report.Id, recText),
-                embedding));
-        }
-
-        return chunks;
-    }
-
     private CoachingReport ParseAndSaveReport(Guid videoId, string reportJson, string ntrpJson)
     {
-        // Strip markdown fences
         reportJson = StripToJson(reportJson, '{', '}');
         ntrpJson   = StripToJson(ntrpJson,   '{', '}');
 
@@ -219,7 +155,6 @@ public class TennisCoachOrchestrator(
             }
         }
 
-        // Parse NTRP
         double? ntrpRating = null;
         double? ntrpMin = null;
         double? ntrpMax = null;

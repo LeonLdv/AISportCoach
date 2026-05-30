@@ -4,6 +4,8 @@ using AISportCoach.Application.Agents.Specialists;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
+using AISportCoach.Application.Services;
+using AISportCoach.Infrastructure.BackgroundServices;
 using AISportCoach.Infrastructure.Database;
 using AISportCoach.Infrastructure.Persistence.Repositories;
 using AISportCoach.Infrastructure.Services;
@@ -78,6 +80,25 @@ public static class DependencyInjection
 
         // Semantic Kernel
         services.AddSemanticKernel(configuration);
+
+        // Embedding channel — bounded, fire-and-forget from orchestrator to background service
+        services.AddSingleton<System.Threading.Channels.Channel<Guid>>(_ =>
+            System.Threading.Channels.Channel.CreateBounded<Guid>(
+                new System.Threading.Channels.BoundedChannelOptions(capacity: 100)
+                {
+                    FullMode = System.Threading.Channels.BoundedChannelFullMode.DropWrite,
+                    SingleWriter = false,
+                    SingleReader = true,
+                }));
+        services.AddSingleton(sp =>
+            sp.GetRequiredService<System.Threading.Channels.Channel<Guid>>().Writer);
+        services.AddSingleton(sp =>
+            sp.GetRequiredService<System.Threading.Channels.Channel<Guid>>().Reader);
+
+        // IReportChunker is pure logic — singleton is safe
+        services.AddSingleton<IReportChunker, ReportChunker>();
+
+        services.AddHostedService<ReportEmbeddingBackgroundService>();
 
         return services;
     }
