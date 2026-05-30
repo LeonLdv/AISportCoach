@@ -152,4 +152,27 @@ public class ReportChunkerTests
 
         Assert.All(chunks, c => Assert.Equal(report.Id, c.ReportId));
     }
+
+    [Fact]
+    public void Chunk_ObservationWithNullBodyPart_TextDoesNotContainBodyPartSeparator()
+    {
+        var report = CoachingReport.Create(
+            Guid.NewGuid(), 70, "Summary",
+            [new TechniqueObservation
+            {
+                Id = Guid.NewGuid(),
+                Stroke = TennisStroke.Serve,
+                Severity = SeverityLevel.Info,
+                Description = "Ball toss inconsistent",
+                FrameTimestamp = "00:00:30",
+                BodyPart = null
+            }],
+            []);
+
+        var chunks = _sut.Chunk(report);
+        var obsChunk = chunks.Single(c => c.ChunkType == ChunkType.Observation);
+
+        Assert.Contains("Ball toss inconsistent", obsChunk.Text);
+        Assert.DoesNotContain(" | null", obsChunk.Text);
+    }
 }
