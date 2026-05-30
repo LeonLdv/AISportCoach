@@ -37,9 +37,11 @@ public class ReportEmbeddingBackgroundServiceTests
 
     private static void SetNavigation<T, TNav>(T obj, string propName, TNav value)
         where T : class where TNav : class
+        // null here means a test-setup mistake (wrong property name) — let it NRE loudly
         => typeof(T).GetProperty(propName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(obj, value);
 
     private static void SetProperty<T>(object obj, string propName, T value)
+        // null here means a test-setup mistake (wrong property name) — let it NRE loudly
         => obj.GetType().GetProperty(propName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(obj, value);
 
     private static ReportEmbeddingBackgroundService BuildService(
@@ -88,7 +90,6 @@ public class ReportEmbeddingBackgroundServiceTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await sut.StartAsync(cts.Token);
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
@@ -115,7 +116,6 @@ public class ReportEmbeddingBackgroundServiceTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await sut.StartAsync(cts.Token);
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
@@ -146,9 +146,7 @@ public class ReportEmbeddingBackgroundServiceTests
         var sut = BuildService(channel.Reader, mockReportRepo.Object, mockEmbeddingService.Object, mockEmbeddingRepo.Object);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        // Must not throw
         await sut.StartAsync(cts.Token);
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
