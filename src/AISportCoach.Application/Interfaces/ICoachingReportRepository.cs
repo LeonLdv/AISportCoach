@@ -8,6 +8,7 @@ public interface ICoachingReportRepository
 {
     Task<CoachingReport?> GetByIdAsync(Guid reportId, CancellationToken ct = default);
     Task<CoachingReport?> GetByIdAndUserAsync(Guid reportId, Guid userId, CancellationToken ct = default);
+    Task<CoachingReport?> GetWithDetailsAsync(Guid reportId, CancellationToken ct = default);
     Task<PagedResult<CoachingReport>> GetPagedAsync(int page, int pageSize, CancellationToken ct = default);
     Task<PagedResult<CoachingReport>> GetPagedByUserAsync(Guid userId, int page, int pageSize, CancellationToken ct = default);
     Task<PagedResult<CoachingReportSummary>> GetPagedSummariesAsync(int page, int pageSize, CancellationToken ct = default);

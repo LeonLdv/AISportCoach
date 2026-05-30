@@ -1,4 +1,5 @@
 using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Models;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Enums;
@@ -64,10 +65,9 @@ public class TennisCoachOrchestrator(
 
             await reportRepository.AddAsync(report, cancellationToken);
 
-            var embeddingText = BuildEmbeddingText(report);
-            var vector = await embeddingService.GenerateEmbeddingAsync(embeddingText, EmbeddingTaskType.Document, cancellationToken);
-            await embeddingRepository.AddAsync(ReportEmbedding.Create(report.Id, video.UserId, vector), cancellationToken);
-            logger.LogInformation("[Embedding] Saved report embedding {ReportId}.", report.Id);
+            var chunks = await BuildAndEmbedChunksAsync(report, cancellationToken);
+            await embeddingRepository.AddChunksAsync(video.UserId, chunks, cancellationToken);
+            logger.LogInformation("[Embedding] Saved {ChunkCount} report embeddings for {ReportId}.", chunks.Count, report.Id);
 
             video.SetStatus(VideoStatus.Processed);
             logger.LogInformation("[Orchestrator] Analysis for video {VideoId} completed successfully.", videoId);
@@ -112,35 +112,60 @@ public class TennisCoachOrchestrator(
         }
     }
 
-    private static string BuildEmbeddingText(CoachingReport report)
+    private async Task<List<(ReportChunk, float[])>> BuildAndEmbedChunksAsync(
+        CoachingReport report, CancellationToken cancellationToken)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine($"SUMMARY: {report.ExecutiveSummary}");
+        var chunks = new List<(ReportChunk, float[])>();
+
+        // Summary chunk
+        var summaryText = $"SUMMARY: {report.ExecutiveSummary}";
         if (report.NtrpRating.HasValue)
-            sb.AppendLine($"NTRP: {report.NtrpRating:0.0} ({report.NtrpRatingMin:0.0}–{report.NtrpRatingMax:0.0}, {report.NtrpConfidence}) — {report.NtrpRatingJustification}");
+            summaryText += $"\nNTRP: {report.NtrpRating:0.0} ({report.NtrpRatingMin:0.0}–{report.NtrpRatingMax:0.0}, {report.NtrpConfidence}) — {report.NtrpRatingJustification}";
+        var summaryEmbedding = await embeddingService.GenerateEmbeddingAsync(
+            summaryText, EmbeddingTaskType.Document, cancellationToken);
+        chunks.Add((
+            new ReportChunk(ChunkType.Summary, report.Id, report.Id, summaryText),
+            summaryEmbedding));
+
+        // NTRP Evidence chunks
         if (report.NtrpEvidence?.Count > 0)
         {
-            sb.AppendLine("NTRP EVIDENCE:");
-            foreach (var ev in report.NtrpEvidence)
-                sb.AppendLine($"  {ev.NtrpIndicator} level {ev.SupportedLevel:0.0} ({ev.Weight}): {ev.Observation}");
-        }
-        if (report.Observations.Count > 0)
-        {
-            sb.AppendLine("OBSERVATIONS:");
-            foreach (var obs in report.Observations)
-                sb.AppendLine($"  {obs.Stroke} [{obs.Severity}] {obs.BodyPart}: {obs.Description}");
-        }
-        if (report.Recommendations.Count > 0)
-        {
-            sb.AppendLine("RECOMMENDATIONS:");
-            foreach (var rec in report.Recommendations)
+            foreach (var evidence in report.NtrpEvidence)
             {
-                sb.AppendLine($"  [{rec.Priority}] {rec.TargetStroke} — {rec.Title}: {rec.DetailedDescription}");
-                if (rec.DrillSuggestions.Count > 0)
-                    sb.AppendLine($"  DRILLS: {string.Join("; ", rec.DrillSuggestions)}");
+                var evidenceText = $"{evidence.NtrpIndicator} level {evidence.SupportedLevel:0.0} ({evidence.Weight}): {evidence.Observation}";
+                var embedding = await embeddingService.GenerateEmbeddingAsync(
+                    evidenceText, EmbeddingTaskType.Document, cancellationToken);
+                chunks.Add((
+                    new ReportChunk(ChunkType.NtrpEvidence, evidence.Id, report.Id, evidenceText),
+                    embedding));
             }
         }
-        return sb.ToString();
+
+        // Observation chunks
+        foreach (var observation in report.Observations)
+        {
+            var obsText = $"{observation.Stroke} [{observation.Severity}] {observation.BodyPart}: {observation.Description}";
+            var embedding = await embeddingService.GenerateEmbeddingAsync(
+                obsText, EmbeddingTaskType.Document, cancellationToken);
+            chunks.Add((
+                new ReportChunk(ChunkType.Observation, observation.Id, report.Id, obsText),
+                embedding));
+        }
+
+        // Recommendation chunks
+        foreach (var recommendation in report.Recommendations)
+        {
+            var recText = $"[{recommendation.Priority}] {recommendation.TargetStroke} — {recommendation.Title}: {recommendation.DetailedDescription}";
+            if (recommendation.DrillSuggestions.Count > 0)
+                recText += $"\nDRILLS: {string.Join("; ", recommendation.DrillSuggestions)}";
+            var embedding = await embeddingService.GenerateEmbeddingAsync(
+                recText, EmbeddingTaskType.Document, cancellationToken);
+            chunks.Add((
+                new ReportChunk(ChunkType.Recommendation, recommendation.Id, report.Id, recText),
+                embedding));
+        }
+
+        return chunks;
     }
 
     private CoachingReport ParseAndSaveReport(Guid videoId, string reportJson, string ntrpJson)
