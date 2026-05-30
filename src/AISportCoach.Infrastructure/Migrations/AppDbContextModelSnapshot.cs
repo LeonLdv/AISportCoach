@@ -271,6 +271,13 @@ namespace AISportCoach.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ChunkId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChunkType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("CoachingReportId")
                         .HasColumnType("uuid");
 
