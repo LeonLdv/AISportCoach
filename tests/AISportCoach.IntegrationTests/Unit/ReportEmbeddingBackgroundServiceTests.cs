@@ -90,6 +90,8 @@ public class ReportEmbeddingBackgroundServiceTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await sut.StartAsync(cts.Token);
+        // Delay lets the background task drain the channel before StopAsync cancels stoppingToken
+        await Task.Delay(TimeSpan.FromMilliseconds(500), cts.Token);
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
@@ -116,6 +118,7 @@ public class ReportEmbeddingBackgroundServiceTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await sut.StartAsync(cts.Token);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), cts.Token);
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
@@ -147,6 +150,7 @@ public class ReportEmbeddingBackgroundServiceTests
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await sut.StartAsync(cts.Token);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), cts.Token);
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
