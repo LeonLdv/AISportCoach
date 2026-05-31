@@ -25,7 +25,7 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
             var vectorLiteral = ToVectorLiteral(embedding);
             await context.Database.ExecuteSqlRawAsync(
                 """
-                INSERT INTO "ReportEmbeddings" ("Id", "CoachingReportId", "UserId", "ChunkType", "ChunkId", "Embedding", "CreatedAt")
+                    INSERT INTO "ReportEmbeddings" ("Id", "CoachingReportId", "UserId", "ChunkType", "ChunkId", "Embedding", "CreatedAt")
                 VALUES (@id, @reportId, @userId, @chunkType, @chunkId, @embedding::vector, @createdAt)
                 """,
                 [
