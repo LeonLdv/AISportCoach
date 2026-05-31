@@ -92,10 +92,14 @@ Upload video
    └─▶ Generates coaching report with trend analysis from session history
     │
     ▼
-5. Generate embedding for new report (Gemini text-embedding-004)
+5. Save report to PostgreSQL
     │
     ▼
-6. Save report + embedding to PostgreSQL (pgvector)
+6. Write ReportEmbeddingQueued to bounded Channel<ReportEmbeddingQueued> (fire-and-forget)
+    │
+    ▼ (async, background)
+7. ReportEmbeddingBackgroundService reads from channel
+   └─▶ Chunks report → generates embeddings (Gemini text-embedding-004) → saves to pgvector
 ```
 
 ### Q&A Advisor — `TennisCoachAdvisorOrchestrator`
@@ -243,6 +247,7 @@ src/
       Helpers/RagContextFormatter.cs    # Filters pgvector results per agent's stroke scope
     Plugins/              # SK plugins (VideoAnalysis, ReportGeneration, CoachQA)
     Interfaces/           # Repository interfaces
+    Messages/             # Typed channel message records (e.g. ReportEmbeddingQueued)
   AISportCoach.Domain/
     Entities/             # VideoUpload, CoachingReport (zero external deps)
     Enums/                # PlayerLevel, VideoStatus, ProcessingState
