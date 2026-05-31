@@ -4,7 +4,7 @@ using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Enums;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace AISportCoach.IntegrationTests.Unit;
+namespace AISportCoach.UnitTests;
 
 public class ReportChunkerTests
 {

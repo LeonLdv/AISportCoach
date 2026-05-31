@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Threading.Channels;
 
-namespace AISportCoach.IntegrationTests.Unit;
+namespace AISportCoach.UnitTests;
 
 public class ReportEmbeddingBackgroundServiceTests
 {
