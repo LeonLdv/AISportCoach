@@ -1,4 +1,5 @@
 using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Messages;
 using AISportCoach.Application.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,14 +9,14 @@ using System.Threading.Channels;
 namespace AISportCoach.Infrastructure.BackgroundServices;
 
 public class ReportEmbeddingBackgroundService(
-    ChannelReader<Guid> channelReader,
+    ChannelReader<ReportEmbeddingQueued> channelReader,
     IServiceScopeFactory scopeFactory,
     IReportChunker chunker,
     ILogger<ReportEmbeddingBackgroundService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var reportId in channelReader.ReadAllAsync(stoppingToken))
+        await foreach (var message in channelReader.ReadAllAsync(stoppingToken))
         {
             try
             {
@@ -24,10 +25,10 @@ public class ReportEmbeddingBackgroundService(
                 var embeddingService = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
                 var embeddingRepository = scope.ServiceProvider.GetRequiredService<IReportEmbeddingRepository>();
 
-                var report = await reportRepository.GetWithDetailsAsync(reportId, stoppingToken);
+                var report = await reportRepository.GetWithDetailsAsync(message.ReportId, stoppingToken);
                 if (report is null)
                 {
-                    logger.LogWarning("Report {ReportId} not found for embedding — skipping", reportId);
+                    logger.LogWarning("Report {ReportId} not found for embedding — skipping", message.ReportId);
                     continue;
                 }
 
@@ -44,7 +45,7 @@ public class ReportEmbeddingBackgroundService(
 
                 await embeddingRepository.AddChunksAsync(userId, pairs, stoppingToken);
                 logger.LogInformation(
-                    "[Embedding] Saved {ChunkCount} chunks for report {ReportId}", pairs.Count, reportId);
+                    "[Embedding] Saved {ChunkCount} chunks for report {ReportId}", pairs.Count, message.ReportId);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -52,7 +53,7 @@ public class ReportEmbeddingBackgroundService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "[Embedding] Pipeline failed for report {ReportId}", reportId);
+                logger.LogError(ex, "[Embedding] Pipeline failed for report {ReportId}", message.ReportId);
                 // swallowed — video stays Processed
             }
         }

@@ -1,6 +1,7 @@
 ﻿#pragma warning disable SKEXP0001, SKEXP0070, SKEXP0110
 using AISportCoach.Application.Agents;
 using AISportCoach.Application.Agents.Specialists;
+using AISportCoach.Application.Messages;
 using AISportCoach.Application.Interfaces;
 using AISportCoach.Application.Options;
 using AISportCoach.Application.Plugins;
@@ -82,8 +83,8 @@ public static class DependencyInjection
         services.AddSemanticKernel(configuration);
 
         // Embedding channel — bounded, fire-and-forget from orchestrator to background service
-        services.AddSingleton<System.Threading.Channels.Channel<Guid>>(_ =>
-            System.Threading.Channels.Channel.CreateBounded<Guid>(
+        services.AddSingleton<System.Threading.Channels.Channel<ReportEmbeddingQueued>>(_ =>
+            System.Threading.Channels.Channel.CreateBounded<ReportEmbeddingQueued>(
                 new System.Threading.Channels.BoundedChannelOptions(capacity: 100)
                 {
                     FullMode = System.Threading.Channels.BoundedChannelFullMode.DropWrite,
@@ -91,9 +92,9 @@ public static class DependencyInjection
                     SingleReader = true,
                 }));
         services.AddSingleton(sp =>
-            sp.GetRequiredService<System.Threading.Channels.Channel<Guid>>().Writer);
+            sp.GetRequiredService<System.Threading.Channels.Channel<ReportEmbeddingQueued>>().Writer);
         services.AddSingleton(sp =>
-            sp.GetRequiredService<System.Threading.Channels.Channel<Guid>>().Reader);
+            sp.GetRequiredService<System.Threading.Channels.Channel<ReportEmbeddingQueued>>().Reader);
 
         // IReportChunker is pure logic — singleton is safe
         services.AddSingleton<IReportChunker, ReportChunker>();

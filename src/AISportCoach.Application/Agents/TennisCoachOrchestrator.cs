@@ -1,4 +1,5 @@
 using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Messages;
 using AISportCoach.Application.Plugins;
 using AISportCoach.Domain.Entities;
 using AISportCoach.Domain.Enums;
@@ -17,7 +18,7 @@ public class TennisCoachOrchestrator(
     ICoachingReportRepository reportRepository,
     IVideoRepository videoRepository,
     IVideoFileService videoFileService,
-    ChannelWriter<Guid> embeddingChannel,
+    ChannelWriter<ReportEmbeddingQueued> embeddingChannel,
     ILogger<TennisCoachOrchestrator> logger)
 {
     public async Task<CoachingReport> ProcessAsync(
@@ -59,7 +60,7 @@ public class TennisCoachOrchestrator(
 
             await reportRepository.AddAsync(report, cancellationToken);
 
-            if (!embeddingChannel.TryWrite(report.Id))
+            if (!embeddingChannel.TryWrite(new ReportEmbeddingQueued(report.Id)))
                 logger.LogWarning("[Embedding] Channel full — report {ReportId} will not be embedded", report.Id);
 
             video.SetStatus(VideoStatus.Processed);

@@ -1,4 +1,5 @@
 using AISportCoach.Application.Interfaces;
+using AISportCoach.Application.Messages;
 using AISportCoach.Application.Models;
 using AISportCoach.Application.Services;
 using AISportCoach.Domain.Entities;
@@ -45,7 +46,7 @@ public class ReportEmbeddingBackgroundServiceTests
         => obj.GetType().GetProperty(propName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(obj, value);
 
     private static ReportEmbeddingBackgroundService BuildService(
-        ChannelReader<Guid> reader,
+        ChannelReader<ReportEmbeddingQueued> reader,
         ICoachingReportRepository reportRepo,
         IEmbeddingService embeddingService,
         IReportEmbeddingRepository embeddingRepo)
@@ -71,8 +72,8 @@ public class ReportEmbeddingBackgroundServiceTests
         // 1 summary + 1 observation = 2 chunks
         const int expectedChunkCount = 2;
 
-        var channel = Channel.CreateUnbounded<Guid>();
-        channel.Writer.TryWrite(report.Id);
+        var channel = Channel.CreateUnbounded<ReportEmbeddingQueued>();
+        channel.Writer.TryWrite(new ReportEmbeddingQueued(report.Id));
         channel.Writer.Complete();
 
         var mockReportRepo = new Mock<ICoachingReportRepository>();
@@ -103,8 +104,8 @@ public class ReportEmbeddingBackgroundServiceTests
     [Fact]
     public async Task ExecuteAsync_ReportNotFound_SkipsWithoutCallingAddChunksAsync()
     {
-        var channel = Channel.CreateUnbounded<Guid>();
-        channel.Writer.TryWrite(Guid.NewGuid());
+        var channel = Channel.CreateUnbounded<ReportEmbeddingQueued>();
+        channel.Writer.TryWrite(new ReportEmbeddingQueued(Guid.NewGuid()));
         channel.Writer.Complete();
 
         var mockReportRepo = new Mock<ICoachingReportRepository>();
@@ -131,8 +132,8 @@ public class ReportEmbeddingBackgroundServiceTests
     {
         var report = BuildReport();
 
-        var channel = Channel.CreateUnbounded<Guid>();
-        channel.Writer.TryWrite(report.Id);
+        var channel = Channel.CreateUnbounded<ReportEmbeddingQueued>();
+        channel.Writer.TryWrite(new ReportEmbeddingQueued(report.Id));
         channel.Writer.Complete();
 
         var mockReportRepo = new Mock<ICoachingReportRepository>();
