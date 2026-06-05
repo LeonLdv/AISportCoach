@@ -34,7 +34,7 @@ public class ReportEmbeddingBackgroundService(
 
                 var userId = report.VideoUpload.UserId;
                 var chunks = chunker.Chunk(report);
-                var pairs = new List<(ReportChunk, float[])>(chunks.Count);
+                var pairs = new List<(ReportChunk, ReadOnlyMemory<float>)>(chunks.Count);
 
                 foreach (var chunk in chunks)
                 {

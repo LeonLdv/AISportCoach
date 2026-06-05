@@ -7,9 +7,9 @@ public interface IReportEmbeddingRepository
 {
     Task AddChunksAsync(
         Guid userId,
-        IReadOnlyList<(ReportChunk Chunk, float[] Embedding)> chunks,
+        IReadOnlyList<(ReportChunk Chunk, ReadOnlyMemory<float> Embedding)> chunks,
         CancellationToken ct);
 
     Task<List<CoachingReport>> SearchSimilarAsync(
-        float[] queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct);
+        ReadOnlyMemory<float> queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct);
 }

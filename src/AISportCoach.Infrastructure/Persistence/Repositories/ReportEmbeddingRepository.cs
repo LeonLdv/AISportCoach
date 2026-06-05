@@ -9,12 +9,18 @@ namespace AISportCoach.Infrastructure.Persistence.Repositories;
 
 public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingRepository
 {
-    private static string ToVectorLiteral(float[] values) =>
-        $"[{string.Join(",", values.Select(f => f.ToString(CultureInfo.InvariantCulture)))}]";
+    private static string ToVectorLiteral(ReadOnlyMemory<float> values)
+    {
+        var span = values.Span;
+        var parts = new string[span.Length];
+        for (var i = 0; i < span.Length; i++)
+            parts[i] = span[i].ToString(CultureInfo.InvariantCulture);
+        return $"[{string.Join(",", parts)}]";
+    }
 
     public async Task AddChunksAsync(
         Guid userId,
-        IReadOnlyList<(ReportChunk Chunk, float[] Embedding)> chunks,
+        IReadOnlyList<(ReportChunk Chunk, ReadOnlyMemory<float> Embedding)> chunks,
         CancellationToken ct)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(ct);
@@ -44,7 +50,7 @@ public class ReportEmbeddingRepository(AppDbContext context) : IReportEmbeddingR
     }
 
     public async Task<List<CoachingReport>> SearchSimilarAsync(
-        float[] queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct)
+        ReadOnlyMemory<float> queryEmbedding, Guid userId, int topK, double maxDistance, CancellationToken ct)
     {
         var vectorLiteral = ToVectorLiteral(queryEmbedding);
 

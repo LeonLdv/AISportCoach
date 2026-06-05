@@ -83,7 +83,7 @@ public class ReportEmbeddingBackgroundServiceTests
         var mockEmbeddingService = new Mock<IEmbeddingService>();
         mockEmbeddingService
             .Setup(s => s.GenerateEmbeddingAsync(It.IsAny<string>(), EmbeddingTaskType.Document, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new float[768]);
+            .ReturnsAsync(new ReadOnlyMemory<float>(new float[768]));
 
         var mockEmbeddingRepo = new Mock<IReportEmbeddingRepository>();
 
@@ -97,7 +97,7 @@ public class ReportEmbeddingBackgroundServiceTests
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
             It.IsAny<Guid>(),
-            It.Is<IReadOnlyList<(ReportChunk, float[])>>(l => l.Count == expectedChunkCount),
+            It.Is<IReadOnlyList<(ReportChunk, ReadOnlyMemory<float>)>>(l => l.Count == expectedChunkCount),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -123,7 +123,7 @@ public class ReportEmbeddingBackgroundServiceTests
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
-            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<(ReportChunk, float[])>>(), It.IsAny<CancellationToken>()),
+            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<(ReportChunk, ReadOnlyMemory<float>)>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -155,7 +155,7 @@ public class ReportEmbeddingBackgroundServiceTests
         await sut.StopAsync(CancellationToken.None);
 
         mockEmbeddingRepo.Verify(r => r.AddChunksAsync(
-            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<(ReportChunk, float[])>>(), It.IsAny<CancellationToken>()),
+            It.IsAny<Guid>(), It.IsAny<IReadOnlyList<(ReportChunk, ReadOnlyMemory<float>)>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 }

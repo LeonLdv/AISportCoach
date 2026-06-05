@@ -65,7 +65,7 @@ public class EmbeddingServiceTest
         var vector = await service.GenerateEmbeddingAsync(Text, EmbeddingTaskType.Document, CancellationToken.None);
 
         Assert.Equal(768, vector.Length);
-        Assert.Contains(vector, v => v != 0f);
+        Assert.Contains(vector.ToArray(), v => v != 0f);
     }
 }
 
@@ -119,7 +119,7 @@ public class ReportChunkingIntegrationTest
                 chunk.Text, EmbeddingTaskType.Document, CancellationToken.None);
 
             Assert.Equal(768, vector.Length);
-            Assert.Contains(vector, v => v != 0f);
+            Assert.Contains(vector.ToArray(), v => v != 0f);
         }
     }
 }

@@ -5,7 +5,7 @@ namespace AISportCoach.Infrastructure.Services;
 
 public class GeminiEmbeddingService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator) : IEmbeddingService
 {
-    public async Task<float[]> GenerateEmbeddingAsync(string text, EmbeddingTaskType taskType, CancellationToken ct)
+    public async Task<ReadOnlyMemory<float>> GenerateEmbeddingAsync(string text, EmbeddingTaskType taskType, CancellationToken ct)
     {
         var options = new EmbeddingGenerationOptions
         {
@@ -16,6 +16,6 @@ public class GeminiEmbeddingService(IEmbeddingGenerator<string, Embedding<float>
             }
         };
         var embeddings = await embeddingGenerator.GenerateAsync([text], options, ct);
-        return embeddings[0].Vector.ToArray();
+        return embeddings[0].Vector;
     }
 }
