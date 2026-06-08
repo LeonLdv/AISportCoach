@@ -148,7 +148,7 @@ Each specialist receives only the RAG context filtered to its stroke domain (`Ra
 | **Architecture** | MediatR 12 (CQRS), Clean Architecture, Repository pattern |
 | **AI Orchestration** | SK GroupChat (`RoundRobinGroupChatManager`), 7 specialist agents |
 | **App Orchestration** | .NET Aspire 13 (AppHost + ServiceDefaults) |
-| **Testing** | xUnit, Moq, integration tests against real Gemini API |
+| **Testing** | xUnit, Moq — unit, integration (real Gemini API), and functional (Aspire end-to-end) |
 | **API Docs** | Swashbuckle/Swagger (`/swagger`) |
 
 ## Getting Started
@@ -199,7 +199,15 @@ Migrations apply automatically on startup in Development mode.
 
 ### Test
 
-Integration tests hit the real Gemini API. Add your key to `appsettings.test.json`:
+There are three test projects:
+
+| Project | Type | What it tests |
+|---------|------|---------------|
+| `AISportCoach.UnitTests` | Unit | Domain logic, background services |
+| `AISportCoach.IntegrationTests` | Integration | AI pipeline against real Gemini API |
+| `AISportCoach.FunctionalTests` | Functional | Full HTTP flows via Aspire (auth, upload, analysis, authorization) |
+
+**Integration tests** require a Gemini API key:
 
 ```json
 // tests/AISportCoach.IntegrationTests/appsettings.test.json
@@ -210,10 +218,18 @@ Integration tests hit the real Gemini API. Add your key to `appsettings.test.jso
 }
 ```
 
-Then run:
+**Functional tests** boot the full Aspire stack (PostgreSQL included) and run real HTTP requests against the API. They require the PostgreSQL password secret to be set (see Configuration above) and Docker running.
+
+Run all tests:
 
 ```bash
 dotnet test
+```
+
+Run only functional tests (skips Gemini API calls):
+
+```bash
+dotnet test tests/AISportCoach.FunctionalTests
 ```
 
 ### Commands
@@ -262,7 +278,9 @@ aspire/
   AISportCoach.ServiceDefaults/ # OTEL, health checks, resilience
 
 tests/
-  AISportCoach.IntegrationTests/ # Integration tests (real Gemini API)
+  AISportCoach.UnitTests/         # Unit tests (domain logic, background services)
+  AISportCoach.IntegrationTests/  # Integration tests (real Gemini API)
+  AISportCoach.FunctionalTests/   # Functional tests (Aspire end-to-end: auth, upload, analysis)
 
 .claude/
   rules/                  # Architecture, API, database, AI, testing conventions
